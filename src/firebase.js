@@ -3,7 +3,8 @@ import {
     getAuth, 
     signInWithEmailAndPassword,
     // Nota: Agregaremos onAuthStateChanged para el AuthContext de Bastián
-    onAuthStateChanged 
+    onAuthStateChanged,
+    signOut 
 } from "firebase/auth";
 import { 
     getFirestore,
@@ -50,6 +51,20 @@ export const login = async (email, password) => {
     } catch (error) {
         console.error("Error en login:", error.code, error.message);
         throw error; // Lanza el error para que el componente de login lo atrape
+    }
+};
+
+/**
+ * Cierra la sesión del usuario actual.
+ * @returns {Promise<void>}
+ */
+export const logout = async () => {
+    try {
+        await signOut(auth);
+        console.log("Usuario deslogueado exitosamente");
+    } catch (error) {
+        console.error("Error en logout:", error.code, error.message);
+        throw error;
     }
 };
 
