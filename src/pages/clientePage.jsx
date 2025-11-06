@@ -1,3 +1,5 @@
+// src/pages/ClientePanel.jsx (TAREA 1 Corregida, SIN ICONOS)
+
 import React, { useState, useEffect } from "react";
 import {
   Container,
@@ -12,11 +14,10 @@ import {
   Spinner,
   Center,
   Divider,
-  Image
+  Image,
 } from "@chakra-ui/react";
 import { useAuth } from "../context/AuthContext";
-// ¡Importamos las funciones correctas de Francisco!
-import { getPlatosDisponibles, createPedido, logout } from "../firebase";
+import { getPlatosDisponibles, createPedido } from "../firebase";
 
 const ClientePanel = () => {
   const [platos, setPlatos] = useState([]);
@@ -27,11 +28,9 @@ const ClientePanel = () => {
   const { currentUser } = useAuth();
   const toast = useToast();
 
-  // 1. OBTENER PLATOS (Usando getPlatosDisponibles)
   useEffect(() => {
     const fetchPlatos = async () => {
       try {
-        // ¡Usamos la nueva función!
         const platosDeDB = await getPlatosDisponibles();
         setPlatos(platosDeDB);
       } catch (error) {
@@ -42,10 +41,8 @@ const ClientePanel = () => {
     fetchPlatos();
   }, [toast]);
 
-  // 2. LÓGICA DEL CARRITO (Sin cambios)
+  // --- TAREA 1: LÓGICA DE CARRITO REFACTORIZADA ---
   const agregarAlCarrito = (plato) => {
-    // La función 'getPlatosDisponibles' ya filtra, pero esta
-    // doble verificación (isDisponible) no hace daño.
     if (!plato.isDisponible) {
       toast({
         title: "Este plato no está disponible",
@@ -54,7 +51,6 @@ const ClientePanel = () => {
       });
       return;
     }
-
     setCarrito((prevCarrito) => {
       const itemExistente = prevCarrito.find((item) => item.id === plato.id);
       if (itemExistente) {
@@ -67,13 +63,38 @@ const ClientePanel = () => {
     });
   };
 
+  const incrementarCantidad = (platoId) => {
+    setCarrito((prevCarrito) =>
+      prevCarrito.map((item) =>
+        item.id === platoId ? { ...item, cantidad: item.cantidad + 1 } : item
+      )
+    );
+  };
+
+  const decrementarCantidad = (platoId) => {
+    setCarrito((prevCarrito) =>
+      prevCarrito
+        .map((item) =>
+          item.id === platoId
+            ? { ...item, cantidad: Math.max(0, item.cantidad - 1) }
+            : item
+        )
+        .filter((item) => item.cantidad > 0)
+    );
+  };
+
+  const eliminarProducto = (platoId) => {
+    setCarrito((prevCarrito) =>
+      prevCarrito.filter((item) => item.id !== platoId)
+    );
+  };
+
   const calcularTotal = () => {
     return carrito
       .reduce((total, item) => total + item.precio * item.cantidad, 0)
       .toFixed(2);
   };
 
-  // 3. CONFIRMAR PEDIDO (Usando createPedido)
   const handleConfirmarPedido = async () => {
     setLoadingPedido(true);
     const nuevoPedido = {
@@ -81,7 +102,7 @@ const ClientePanel = () => {
       clienteEmail: currentUser.email,
       items: carrito,
       total: Number(calcularTotal()),
-      estado: "Pendiente", // 'createPedido' lo sobrescribe, pero es bueno tenerlo
+      estado: "Pendiente",
     };
 
     try {
@@ -95,7 +116,6 @@ const ClientePanel = () => {
   };
 
   // --- RENDERIZADO ---
-
   if (loadingPlatos) {
     return (
       <Center h="100vh">
@@ -111,6 +131,7 @@ const ClientePanel = () => {
       </HStack>
 
       <HStack spacing={8} align="start">
+        {/* Columna de Platos (Sin cambios) */}
         <Box flex={3}>
           <SimpleGrid columns={{ base: 1, md: 4 }} spacing={6}>
             {platos.map((plato) => (
@@ -120,7 +141,6 @@ const ClientePanel = () => {
                 <Text fontSize="xl" fontWeight="bold" color="blue.600" my={2}>
                   ${plato.precio}
                 </Text>
-                {/* Como ya filtramos, no necesitamos deshabilitar el botón */}
                 <Button
                   w="full"
                   colorScheme="blue"
@@ -133,6 +153,7 @@ const ClientePanel = () => {
           </SimpleGrid>
         </Box>
 
+        {/* --- TAREA 1: Columna de Carrito (RENDERIZADO ACTUALIZADO SIN ICONOS) --- */}
         <Box
           flex={1}
           p={6}
@@ -146,15 +167,55 @@ const ClientePanel = () => {
           </Heading>
           <VStack spacing={4} align="stretch" mb={6} minH="100px">
             {carrito.length === 0 && <Text>Agrega platos al carrito.</Text>}
+
             {carrito.map((item) => (
-              <HStack key={item.id} justify="space-between">
-                <Text>
-                  {item.nombre} (x{item.cantidad})
-                </Text>
-                <Text fontWeight="bold">
-                  ${(item.precio * item.cantidad).toFixed(2)}
-                </Text>
-              </HStack>
+              <Box
+                key={item.id}
+                borderWidth="1px"
+                p={2}
+                borderRadius="md"
+                w="100%"
+              >
+                <HStack justify="space-between">
+                  <Text
+                    fontWeight="bold"
+                    fontSize="sm"
+                    isTruncated
+                    maxW="150px"
+                  >
+                    {item.nombre}
+                  </Text>
+                  <Button
+                    size="xs"
+                    colorScheme="red"
+                    variant="ghost"
+                    onClick={() => eliminarProducto(item.id)}
+                  >
+                    X
+                  </Button>
+                </HStack>
+                <HStack justify="space-between" mt={2}>
+                  <HStack>
+                    <Button
+                      size="xs"
+                      onClick={() => decrementarCantidad(item.id)}
+                    >
+                      -
+                    </Button>
+                    <Text fontWeight="bold">{item.cantidad}</Text>
+                    <Button
+                      size="xs"
+                      onClick={() => incrementarCantidad(item.id)}
+                    >
+                      +
+                    </Button>
+                  </HStack>
+                  <Text fontWeight="bold" fontSize="sm">
+                    ${(item.precio * item.cantidad).toFixed(2)}
+                  </Text>{" "}
+                  {/* <-- LÍNEA CORREGIDA */}
+                </HStack>
+              </Box>
             ))}
           </VStack>
           <Divider />
