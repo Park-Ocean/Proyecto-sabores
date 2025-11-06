@@ -1,9 +1,13 @@
 // src/App.jsx
-import { Link, Routes, Route } from "react-router-dom";
+import { Link, Routes, Route, Navigate } from "react-router-dom";
 import {
   Box, Container, HStack, Heading, Spacer, Button, useColorMode,
 } from "@chakra-ui/react";
 import AdminPanel from "./pages/AdminPanel.jsx";
+import LoginPage from "./pages/loginPage.jsx"; // Añadido
+import ClientePanel from "./pages/clientePage.jsx"; // Añadido
+// --- COMPONENTE DE AUTENTICACIÓN ---
+import RutaProtegida from "./components/RutaProtegida.jsx"; // Añadido
 
 function Navbar() {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -36,8 +40,29 @@ export default function App() {
     <Container maxW="container.lg" py={4}>
       <Navbar />
       <Routes>
+        {/* Rutas Públicas */}
         <Route path="/" element={<Home />} />
-        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/login" element={<LoginPage />} />
+
+        {/* Rutas Protegidas por Rol */}
+        <Route
+          path="/admin"
+          element={
+            <RutaProtegida rolRequerido="admin">
+              <AdminPanel />
+            </RutaProtegida>
+          }
+        />
+        <Route
+          path="/cliente"
+          element={
+            <RutaProtegida rolRequerido="cliente">
+              <ClientePanel />
+            </RutaProtegida>
+          }
+        />
+        {/* Ruta por defecto: si no coincide nada, redirige a /login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Container>
   );
