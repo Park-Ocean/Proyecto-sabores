@@ -1,118 +1,181 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/RepartidorPanel.jsx
+import { useEffect, useState } from "react";
 import {
   Box,
   Heading,
-  Spinner,
+  VStack,
+  HStack,
   Text,
+  Spinner,
+  Divider,
+  Badge,
+  ButtonGroup,
+  Button,
+  useToast,
   Card,
-  CardHeader,
   CardBody,
-  VStack, // Usaremos esto para apilar los pedidos
-  Alert,
-  AlertIcon
-} from '@chakra-ui/react';
+  Stack,
+} from "@chakra-ui/react";
+import { getPedidos, updatePedidoEstado } from "../firebase";
 
-// 1. IMPORTAMOS TU FUNCIÓN (TAREA 2)
-// Asumiendo que RepartidorPanel.js está en 'src/components/'
-// y firebase.js está en 'src/'
-import { getPedidos } from '../firebase';
-
-const RepartidorPanel = () => {
-  // 2. ESTADOS
-  // 'pedidos' guardará la lista que viene de Firebase
-  // 'loading' nos sirve para mostrar un ícono de carga
+export default function RepartidorPanel() {
+  const [cargando, setCargando] = useState(true);
   const [pedidos, setPedidos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [actualizando, setActualizando] = useState(null);
+  const toast = useToast();
 
-  // 3. USE EFFECT: Se ejecuta 1 VEZ cuando el componente carga
   useEffect(() => {
-    // Definimos una función interna async para poder usar 'await'
-    const cargarPedidos = async () => {
+    let alive = true;
+    (async () => {
       try {
-        setLoading(true);
-        const data = await getPedidos(); // ¡Aquí usamos la función de Francisco!
-        setPedidos(data); // Guardamos los pedidos en nuestro estado
-      } catch (error) {
-        console.error("Error al cargar pedidos:", error);
+        const data = await getPedidos(); // fetch puntual (getDocs)
+        if (alive) setPedidos(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error(e);
       } finally {
-        setLoading(false); // Terminamos la carga (incluso si hubo error)
+        if (alive) setCargando(false);
       }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const cambiarEstado = async (pedidoId, nuevo) => {
+    try {
+      setActualizando(pedidoId);
+      await updatePedidoEstado(pedidoId, nuevo);
+      // Como es fetch (no onSnapshot), reflejamos en memoria:
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === pedidoId ? { ...p, estado: nuevo } : p))
+      );
+      toast({
+        title: "Estado actualizado",
+        description: `Ahora: ${nuevo}`,
+        status: "success",
+      });
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: "No se pudo actualizar",
+        description: String(e?.message || e),
+        status: "error",
+      });
+    } finally {
+      setActualizando(null);
+    }
+  };
+
+  const colorEstado = (estado) => {
+    const e = String(estado || "").toLowerCase();
+    if (e.includes("entregado")) return "green";
+    if (e.includes("camino")) return "blue";
+    if (e.includes("pendiente")) return "gray";
+    return "purple";
     };
 
-    cargarPedidos();
-  }, []); // El [] vacío asegura que esto se ejecute solo una vez
-
-  // 4. RENDER (VISTA)
-  
-  // Si 'loading' es true, mostramos un Spinner
-  if (loading) {
+  if (cargando) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <Spinner size="xl" />
+      <Box p={6}>
+        <HStack>
+          <Spinner />
+          <Text>Cargando pedidos…</Text>
+        </HStack>
       </Box>
     );
   }
 
-  // Si no hay pedidos, mostramos un mensaje amigable
-  if (pedidos.length === 0) {
-    return (
-      <Box p={4}>
-        <Heading as="h1" mb={6}>
-          Panel de Repartidor
-        </Heading>
-        <Alert status="info">
-          <AlertIcon />
-          No hay pedidos pendientes por ahora.
-        </Alert>
-      </Box>
-    );
-  }
-
-  // 5. RENDER CON DATOS (TAREA 3)
-  // Si hay pedidos, los mostramos
   return (
-    <Box p={4}>
-      <Heading as="h1" mb={6}>
-        Panel de Repartidor - Pedidos Pendientes
-      </Heading>
+    <Box p={6} maxW="1000px" mx="auto">
+      <HStack justify="space-between" mb={4}>
+        <Heading size="lg">Panel del Repartidor</Heading>
+        <Text color="gray.500">Actualiza el estado de los pedidos.</Text>
+      </HStack>
+      <Divider mb={4} />
 
-      <VStack spacing={4} align="stretch">
-        {pedidos.map((pedido) => (
-          // Usamos Card y Box de Chakra UI
-          <Card key={pedido.id} variant="outline">
-            <CardHeader>
-              {/* El 'id' viene de Firebase (ej: 4aT... ) */}
-              <Heading size="md">Pedido #{pedido.id}</Heading>
-            </CardHeader>
-            <CardBody>
-              {/* Estos nombres de campos (clienteId, total, items) deben coincidir 
-                con lo que Bastián guarda al usar 'createPedido'. 
-                Revisé el 'firebase.js' y Bastián probablemente guarde 'items' y 'total'.
-              */}
-              <Text><strong>Cliente ID:</strong> {pedido.clienteId || 'No especificado'}</Text>
-              <Text><strong>Total:</strong> ${pedido.total || 0}</Text>
-              <Text><strong>Estado:</strong> {pedido.estado || 'Pendiente'}</Text>
-              <Text><strong>Dirección:</strong> {pedido.direccionEntrega || 'Dirección no especificada'}</Text>
-              
-              <Heading size="sm" mt={3}>Items:</Heading>
-              {/* El campo 'items' que guarda Bastián es un array.
-                Lo recorremos para mostrar cada plato.
-              */}
-              {Array.isArray(pedido.items) ? (
-                pedido.items.map((item, index) => (
-                  <Text key={index} ml={4}>
-                    - {item.nombre} (Cantidad: {item.cantidad})
-                  </Text>
-                ))
-              ) : (
-                <Text>No se pudieron cargar los items.</Text>
-              )}
-            </CardBody>
-          </Card>
-        ))}
-      </VStack>
+      {pedidos.length === 0 ? (
+        <Text color="gray.500">No hay pedidos por ahora.</Text>
+      ) : (
+        <VStack spacing={4} align="stretch">
+          {pedidos.map((pedido) => (
+            <Card key={pedido.id} variant="outline">
+              <CardBody>
+                <Stack spacing={3}>
+                  <HStack justify="space-between" align="start">
+                    <Box>
+                      <HStack spacing={3}>
+                        <Text fontWeight="bold">
+                          Pedido #{pedido.id?.slice?.(-6) || pedido.id}
+                        </Text>
+                        <Badge colorScheme={colorEstado(pedido.estado)}>
+                          {pedido.estado || "Pendiente"}
+                        </Badge>
+                      </HStack>
+                      {pedido.clienteEmail && (
+                        <Text fontSize="sm" color="gray.600">
+                          Cliente: {pedido.clienteEmail}
+                        </Text>
+                      )}
+                    </Box>
+
+                    {/* Botones de estado */}
+                    <ButtonGroup size="sm" isAttached>
+                      <Button
+                        variant="outline"
+                        onClick={() => cambiarEstado(pedido.id, "En Camino")}
+                        isLoading={actualizando === pedido.id}
+                      >
+                        En Camino
+                      </Button>
+                      <Button
+                        colorScheme="green"
+                        onClick={() => cambiarEstado(pedido.id, "Entregado")}
+                        isLoading={actualizando === pedido.id}
+                      >
+                        Entregado
+                      </Button>
+                    </ButtonGroup>
+                  </HStack>
+
+                  {/* Detalle (opcional) */}
+                  {Array.isArray(pedido.items) && pedido.items.length > 0 && (
+                    <Box>
+                      <Text fontWeight="semibold" mb={1}>
+                        Detalle
+                      </Text>
+                      <VStack align="stretch" spacing={1}>
+                        {pedido.items.map((it, i) => (
+                          <HStack key={i} justify="space-between">
+                            <Text>
+                              {it?.nombre || "Item"}{" "}
+                              {it?.cantidad ? `x${it.cantidad}` : ""}
+                            </Text>
+                            {it?.precio != null && (
+                              <Text color="gray.600">
+                                ${Number(it.precio).toLocaleString()}
+                              </Text>
+                            )}
+                          </HStack>
+                        ))}
+                      </VStack>
+                    </Box>
+                  )}
+
+                  <HStack justify="space-between" pt={2}>
+                    <Box />
+                    <Text fontWeight="bold" fontSize="lg">
+                      Total: $
+                      {pedido?.total != null
+                        ? Number(pedido.total).toLocaleString()
+                        : "—"}
+                    </Text>
+                  </HStack>
+                </Stack>
+              </CardBody>
+            </Card>
+          ))}
+        </VStack>
+      )}
     </Box>
   );
-};
-
-export default RepartidorPanel;
+}
