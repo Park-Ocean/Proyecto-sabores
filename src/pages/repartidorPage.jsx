@@ -115,6 +115,16 @@ export default function RepartidorPanel() {
                           Cliente: {pedido.clienteEmail}
                         </Text>
                       )}
+
+                      {/* --- ¡AQUÍ ESTÁ TU TAREA 1 CRÍTICA! --- */}
+                      {/* Esto mostrará la dirección que Bastián agregó */}
+                      {pedido.direccion && (
+                        <Text fontSize="sm" color="gray.600" mt={1}>
+                          Dirección: {pedido.direccion}
+                        </Text>
+                      )}
+                      {/* --- FIN DE LA TAREA --- */}
+                    
                     </Box>
 
                     {/* Botones de estado */}
