@@ -178,6 +178,33 @@ export const getPlatosDisponibles = async () => {
 };
 
 /**
+ * (Para Luciano) Crea un nuevo documento en la colección 'platos'.
+ * @param {Object} platoData - El objeto con los datos del nuevo plato (nombre, precio, etc.).
+ * @returns {Promise<DocumentReference>} Referencia al documento recién creado.
+ */
+export const createPlato = async (platoData) => {
+  // 1. Apunta a la colección 'platos'.
+  const platosCollectionRef = collection(db, "platos");
+  try {
+    // 2. Preparamos el objeto completo con un valor por defecto.
+    const nuevoPlato = {
+      ...platoData,
+      isDisponible: false // Por defecto, un plato nuevo no está disponible
+    };
+
+    // 3. Añadimos el documento a la colección.
+    const docRef = await addDoc(platosCollectionRef, nuevoPlato);
+    
+    console.log("Nuevo plato creado con ID:", docRef.id);
+    return docRef; // Devuelve la referencia
+    
+  } catch (error) {
+    console.error("Error al crear el plato:", error);
+    throw error; // Lanza el error para que el formulario de Luciano lo atrape
+  }
+};
+
+/**
  * (Para Luciano) Actualiza el estado de disponibilidad de un plato.
  * @param {string} platoId - El ID del documento del plato a actualizar.
  * @param {boolean} estado - El nuevo estado (true para disponible, false para no disponible).
