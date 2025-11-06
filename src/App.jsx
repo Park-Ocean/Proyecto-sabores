@@ -1,8 +1,9 @@
+// src/App.jsx
 import { Link, Routes, Route } from "react-router-dom";
 import {
-  Box, Container, HStack, Heading, Spacer, Button, useColorMode
+  Box, Container, HStack, Heading, Spacer, Button, useColorMode,
 } from "@chakra-ui/react";
-import AdminPanel from "./pages/AdminPanel.jsx"; // crea este archivo si no existe
+import AdminPanel from "./pages/AdminPanel.jsx";
 
 function Navbar() {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -25,7 +26,7 @@ function Home() {
   return (
     <Box py={10}>
       <Heading size="lg" mb={2}>Bienvenido</Heading>
-      <Box color="gray.500">Esta es la landing temporal.</Box>
+      <Box color="gray.500">Landing temporal.</Box>
     </Box>
   );
 }
