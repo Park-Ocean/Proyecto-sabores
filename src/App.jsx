@@ -10,23 +10,9 @@ import RegisterPage from "./pages/RegisterPage.jsx";
 // --- COMPONENTE DE AUTENTICACIÓN ---
 import RutaProtegida from "./components/RutaProtegida.jsx"; // Añadido
 import RepartidorPanel from "./pages/repartidorPage.jsx";
+import NavBar from "./components/Navbar.jsx";
 
-function Navbar() {
-  const { colorMode, toggleColorMode } = useColorMode();
-  return (
-    <HStack as="nav" py={4}>
-      <Heading size="md">Sabores</Heading>
-      <Spacer />
-      <HStack spacing={4}>
-        <Button as={Link} to="/" variant="ghost">Inicio</Button>
-        <Button as={Link} to="/admin" colorScheme="teal">Panel</Button>
-        <Button onClick={toggleColorMode} variant="outline">
-          {colorMode === "light" ? "Dark" : "Light"}
-        </Button>
-      </HStack>
-    </HStack>
-  );
-}
+
 
 function Home() {
   return (
@@ -40,7 +26,7 @@ function Home() {
 export default function App() {
   return (
     <Container maxW="container.lg" py={4}>
-      <Navbar />
+      <NavBar />
       <Routes>
         {/* Rutas Públicas */}
         <Route path="/" element={<Home />} />

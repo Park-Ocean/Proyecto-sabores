@@ -5,7 +5,7 @@ import { Center, Spinner } from "@chakra-ui/react";
 
 // --- CORRECCIÓN 1 ---
 // Importamos 'auth' y la función con el nombre correcto: 'getUserProfile'
-import { auth, getUserProfile } from "../firebase"; //aqui iba el auth    /auth,getuserprofile
+import { auth, getUserProfile, logout } from "../firebase"; //aqui iba el auth    /auth,getuserprofile
 
 const AuthContext = createContext();
 
@@ -51,6 +51,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     currentUser,
+    logout,
   };
 
   if (loading) {
