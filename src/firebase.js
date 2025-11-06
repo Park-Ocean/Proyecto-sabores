@@ -173,6 +173,27 @@ export const createPedido = async (pedido) => {
 };
 
 /**
+ * (Para Luciano/Constanza) Actualiza el estado de un pedido (ej. "En Camino", "Entregado").
+ * @param {string} pedidoId - El ID del documento del pedido a actualizar.
+ * @param {string} nuevoEstado - El nuevo estado (ej. "En Camino").
+ * @returns {Promise<void>}
+ */
+export const updatePedidoEstado = async (pedidoId, nuevoEstado) => {
+  // Apunta al documento específico en la colección 'pedidos'
+  const pedidoDocRef = doc(db, "pedidos", pedidoId);
+  try {
+    // Actualiza solo el campo 'estado'
+    await updateDoc(pedidoDocRef, {
+      estado: nuevoEstado,
+    });
+    console.log("Estado del pedido actualizado:", pedidoId, "a", nuevoEstado);
+  } catch (error) {
+    console.error("Error al actualizar estado del pedido:", error);
+    throw error; // Lanza el error para que el componente lo atrape
+  }
+};
+
+/**
  * (Para Constanza) Obtiene todos los pedidos, ordenados por fecha de creación (más nuevos primero).
  * @returns {Promise<Array<Object>>} Un array de objetos, cada uno es un pedido con su ID.
  */
