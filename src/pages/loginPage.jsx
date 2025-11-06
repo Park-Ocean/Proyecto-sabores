@@ -10,14 +10,15 @@ import {
   Heading,
   VStack,
   useToast,
+  Text
 } from "@chakra-ui/react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 // ¡Importamos la función REAL de Francisco!
 import { login } from "../firebase";
 
 const LoginPage = () => {
-  const [email, setEmail] = useState("cliente@test.com"); // Valor por defecto para pruebas
+  const [email, setEmail] = useState("cliente@sabores.cl"); // Valor por defecto para pruebas
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -90,6 +91,17 @@ const LoginPage = () => {
         >
           Entrar
         </Button>
+        <Text>
+          ¿No estas registrado?{" "}
+          <Button
+            as={RouterLink}
+            to="/register"
+            variant="link"
+            colorScheme="blue"
+          >
+            Registrarse
+          </Button>
+        </Text>
       </VStack>
     </Container>
   );

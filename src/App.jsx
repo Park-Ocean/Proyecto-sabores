@@ -4,10 +4,11 @@ import {
   Box, Container, HStack, Heading, Spacer, Button, useColorMode,
 } from "@chakra-ui/react";
 import AdminPanel from "./pages/AdminPanel.jsx";
-import LoginPage from "./pages/loginPage.jsx"; // Añadido
-import ClientePanel from "./pages/clientePage.jsx"; // Añadido
+import LoginPage from "./pages/loginPage.jsx"; 
+import ClientePanel from "./pages/clientePage.jsx"; 
+import RegisterPage from "./pages/RegisterPage.jsx"; 
 // --- COMPONENTE DE AUTENTICACIÓN ---
-import RutaProtegida from "./components/RutaProtegida.jsx"; // Añadido
+import RutaProtegida from "./components/RutaProtegida.jsx"; 
 
 function Navbar() {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -17,7 +18,7 @@ function Navbar() {
       <Spacer />
       <HStack spacing={4}>
         <Button as={Link} to="/" variant="ghost">Inicio</Button>
-        <Button as={Link} to="/admin" colorScheme="teal">Admin</Button>
+        <Button as={Link} to="/admin" colorScheme="teal">Panel</Button>
         <Button onClick={toggleColorMode} variant="outline">
           {colorMode === "light" ? "Dark" : "Light"}
         </Button>
@@ -43,6 +44,7 @@ export default function App() {
         {/* Rutas Públicas */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
         {/* Rutas Protegidas por Rol */}
         <Route
