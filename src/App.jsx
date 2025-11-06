@@ -8,6 +8,7 @@ import LoginPage from "./pages/loginPage.jsx"; // Añadido
 import ClientePanel from "./pages/clientePage.jsx"; // Añadido
 // --- COMPONENTE DE AUTENTICACIÓN ---
 import RutaProtegida from "./components/RutaProtegida.jsx"; // Añadido
+import RepartidorPanel from "./pages/repartidorPage.jsx";
 
 function Navbar() {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -61,6 +62,14 @@ export default function App() {
             </RutaProtegida>
           }
         />
+        <Route 
+        path="/repartidor"
+        element={
+          <RutaProtegida rolRequerido="repartidor">
+            <RepartidorPanel />
+          </RutaProtegida>
+        }
+        /> 
         {/* Ruta por defecto: si no coincide nada, redirige a /login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
