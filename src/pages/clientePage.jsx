@@ -108,9 +108,6 @@ const ClientePanel = () => {
     <Container maxW="container.xl" py={10}>
       <HStack justify="space-between" mb={6}>
         <Heading>Hola, {currentUser.email}! Elige tu menú:</Heading>
-        <Button onClick={logout} colorScheme="red" variant="outline">
-          Salir
-        </Button>
       </HStack>
 
       <HStack spacing={8} align="start">
