@@ -35,8 +35,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Obtener instancias de los servicios
-const auth = getAuth(app);
-const db = getFirestore(app);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
 
 /**
  * Inicia sesión de un usuario con email y contraseña.
