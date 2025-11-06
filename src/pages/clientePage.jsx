@@ -1,4 +1,4 @@
-// src/pages/ClientePanel.jsx (TAREA 1 Corregida, SIN ICONOS)
+// src/pages/ClientePanel.jsx (TAREAS 1 + 2 COMBINADAS)
 
 import React, { useState, useEffect } from "react";
 import {
@@ -15,6 +15,10 @@ import {
   Center,
   Divider,
   Image,
+  // --- TAREA 2: Nuevas importaciones ---
+  Input,
+  FormControl,
+  FormLabel,
 } from "@chakra-ui/react";
 import { useAuth } from "../context/AuthContext";
 import { getPlatosDisponibles, createPedido } from "../firebase";
@@ -22,6 +26,7 @@ import { getPlatosDisponibles, createPedido } from "../firebase";
 const ClientePanel = () => {
   const [platos, setPlatos] = useState([]);
   const [carrito, setCarrito] = useState([]);
+  const [direccion, setDireccion] = useState(""); // <-- TAREA 2: Estado para la dirección
   const [loadingPlatos, setLoadingPlatos] = useState(true);
   const [loadingPedido, setLoadingPedido] = useState(false);
 
@@ -41,7 +46,7 @@ const ClientePanel = () => {
     fetchPlatos();
   }, [toast]);
 
-  // --- TAREA 1: LÓGICA DE CARRITO REFACTORIZADA ---
+  // --- TAREA 1: LÓGICA DE CARRITO (Sin cambios) ---
   const agregarAlCarrito = (plato) => {
     if (!plato.isDisponible) {
       toast({
@@ -95,7 +100,19 @@ const ClientePanel = () => {
       .toFixed(2);
   };
 
+  // --- TAREA 2: LÓGICA DE PEDIDO ACTUALIZADA ---
   const handleConfirmarPedido = async () => {
+    // 1. Validación de dirección (NUEVO)
+    if (direccion.trim() === "") {
+      toast({
+        title: "Dirección requerida",
+        description: "Por favor, ingresa tu dirección de envío.",
+        status: "warning",
+        duration: 3000,
+      });
+      return;
+    }
+
     setLoadingPedido(true);
     const nuevoPedido = {
       clienteId: currentUser.uid,
@@ -103,12 +120,14 @@ const ClientePanel = () => {
       items: carrito,
       total: Number(calcularTotal()),
       estado: "Pendiente",
+      direccion: direccion, // 2. Dirección añadida (NUEVO)
     };
 
     try {
       await createPedido(nuevoPedido);
       toast({ title: "¡Pedido realizado con éxito!", status: "success" });
       setCarrito([]);
+      setDireccion(""); // 3. Limpiar dirección (NUEVO)
     } catch (error) {
       toast({ title: "Error al enviar el pedido", status: "error" });
     }
@@ -153,7 +172,7 @@ const ClientePanel = () => {
           </SimpleGrid>
         </Box>
 
-        {/* --- TAREA 1: Columna de Carrito (RENDERIZADO ACTUALIZADO SIN ICONOS) --- */}
+        {/* --- TAREA 1 y 2: Columna de Carrito (RENDERIZADO ACTUALIZADO) --- */}
         <Box
           flex={1}
           p={6}
@@ -165,9 +184,9 @@ const ClientePanel = () => {
           <Heading size="lg" mb={4}>
             Tu Pedido
           </Heading>
+          {/* Tarea 1: Lógica del carrito (Sin cambios) */}
           <VStack spacing={4} align="stretch" mb={6} minH="100px">
             {carrito.length === 0 && <Text>Agrega platos al carrito.</Text>}
-
             {carrito.map((item) => (
               <Box
                 key={item.id}
@@ -212,13 +231,24 @@ const ClientePanel = () => {
                   </HStack>
                   <Text fontWeight="bold" fontSize="sm">
                     ${(item.precio * item.cantidad).toFixed(2)}
-                  </Text>{" "}
-                  {/* <-- LÍNEA CORREGIDA */}
+                  </Text>
                 </HStack>
               </Box>
             ))}
           </VStack>
           <Divider />
+
+          {/* TAREA 2: Campo de Dirección (NUEVO) */}
+          <FormControl mt={4} isRequired>
+            <FormLabel>Dirección de Envío</FormLabel>
+            <Input
+              placeholder="Ej: Av. Siempre Viva 123"
+              value={direccion}
+              onChange={(e) => setDireccion(e.target.value)}
+            />
+          </FormControl>
+          {/* FIN DE TAREA 2 */}
+
           <HStack justify="space-between" my={4}>
             <Heading size="md">Total:</Heading>
             <Heading size="md">${calcularTotal()}</Heading>
