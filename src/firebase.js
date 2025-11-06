@@ -4,7 +4,8 @@ import {
     signInWithEmailAndPassword,
     // Nota: Agregaremos onAuthStateChanged para el AuthContext de Bastián
     onAuthStateChanged,
-    signOut 
+    signOut,
+    createUserWithEmailAndPassword 
 } from "firebase/auth";
 import { 
     getFirestore,
@@ -17,7 +18,8 @@ import {
     query,
     where,
     serverTimestamp,
-    orderBy
+    orderBy,
+    setDoc
 } from "firebase/firestore";
 
 // --- ¡IMPORTANTE! ---
@@ -84,6 +86,51 @@ export const getUserProfile = async (uid) => {
         console.error("No existe perfil de usuario para el UID:", uid);
         return null;
     }
+};
+
+/**
+ * Registra un NUEVO usuario (solo clientes) en Authentication
+ * y crea su documento de perfil en Firestore.
+ * @param {string} email - El email para el nuevo usuario.
+ * @param {string} password - La contraseña para el nuevo usuario.
+ * @param {Object} additionalData - Datos adicionales (ej. { nombre: "Juan Pérez" }).
+ * @returns {Promise<UserCredential>} El objeto UserCredential de Firebase (para auto-login).
+ */
+export const registerClient = async (email, password, additionalData) => {
+  try {
+    // 1. Crear el usuario en Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // 2. Crear el documento de perfil en Firestore
+    // Apuntamos a un nuevo documento en 'usuarios' usando el UID como ID
+    const userDocRef = doc(db, "usuarios", user.uid);
+
+    // Preparamos los datos del perfil
+    const userData = {
+      uid: user.uid,
+      email: user.email,
+      rol: "cliente", // ¡IMPORTANTE! Rol hardcodeado a 'cliente'
+      ...additionalData // Esto permite añadir { nombre: "..." } etc.
+    };
+
+    // Escribimos el documento en la base de datos
+    await setDoc(userDocRef, userData);
+
+    // Devolvemos el usuario para que el AuthContext lo reconozca (auto-login)
+    return userCredential;
+    
+  } catch (error) {
+    // Maneja errores comunes de registro
+    if (error.code === 'auth/email-already-in-use') {
+      console.error("Error: El correo electrónico ya está en uso.");
+    } else if (error.code === 'auth/weak-password') {
+      console.error("Error: La contraseña es demasiado débil.");
+    } else {
+      console.error("Error en el registro de cliente:", error.code, error.message);
+    }
+    throw error; // Lanza el error para que el formulario de UI lo atrape
+  }
 };
 
 /**
