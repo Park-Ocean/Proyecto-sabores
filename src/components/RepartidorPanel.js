@@ -1,118 +1,131 @@
 import React, { useState, useEffect } from 'react';
+
+// 1. IMPORTAMOS LA FUNCIÓN DE FRANCISCO
+import { getPedidos } from '../firebase'; // O la ruta correcta a tu firebase.js
+
 import {
   Box,
   Heading,
-  Spinner,
-  Text,
+  VStack,
   Card,
-  CardHeader,
   CardBody,
-  VStack, // Usaremos esto para apilar los pedidos
-  Alert,
-  AlertIcon
+  Text,
+  Spinner,
+  Center,
+  Badge,
+  HStack,
+  Divider,
 } from '@chakra-ui/react';
 
-// 1. IMPORTAMOS TU FUNCIÓN (TAREA 2)
-// Asumiendo que RepartidorPanel.js está en 'src/components/'
-// y firebase.js está en 'src/'
-import { getPedidos } from '../firebase';
-
-const RepartidorPanel = () => {
-  // 2. ESTADOS
-  // 'pedidos' guardará la lista que viene de Firebase
-  // 'loading' nos sirve para mostrar un ícono de carga
+function RepartidorPanel() {
   const [pedidos, setPedidos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Corregido 'setlsLoading'
+  const [error, setError] = useState(null);
 
-  // 3. USE EFFECT: Se ejecuta 1 VEZ cuando el componente carga
   useEffect(() => {
-    // Definimos una función interna async para poder usar 'await'
     const cargarPedidos = async () => {
       try {
-        setLoading(true);
-        const data = await getPedidos(); // ¡Aquí usamos la función de Francisco!
-        setPedidos(data); // Guardamos los pedidos en nuestro estado
-      } catch (error) {
-        console.error("Error al cargar pedidos:", error);
-      } finally {
-        setLoading(false); // Terminamos la carga (incluso si hubo error)
-      }
+        setIsLoading(true); // Usamos el nombre corregido
+        const listaPedidos = await getPedidos(); // Usamos la función de Francisco
+        setPedidos(listaPedidos);
+      } catch (err) {
+        setError("No se pudieron cargar los pedidos.");
+        console.error(err);
+      } // Se eliminó '};' extra
+      setIsLoading(false); // Se movió al final de try/catch
     };
 
     cargarPedidos();
-  }, []); // El [] vacío asegura que esto se ejecute solo una vez
+  }, []);
 
-  // 4. RENDER (VISTA)
-  
-  // Si 'loading' es true, mostramos un Spinner
-  if (loading) {
+  if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Center h="80vh">
         <Spinner size="xl" />
-      </Box>
+      </Center>
     );
   }
 
-  // Si no hay pedidos, mostramos un mensaje amigable
-  if (pedidos.length === 0) {
+  if (error) {
     return (
-      <Box p={4}>
-        <Heading as="h1" mb={6}>
-          Panel de Repartidor
-        </Heading>
-        <Alert status="info">
-          <AlertIcon />
-          No hay pedidos pendientes por ahora.
-        </Alert>
-      </Box>
+      <Center h="80vh">
+        <Text color="red.500">{error}</Text>
+      </Center>
     );
   }
 
-  // 5. RENDER CON DATOS (TAREA 3)
-  // Si hay pedidos, los mostramos
   return (
-    <Box p={4}>
-      <Heading as="h1" mb={6}>
+    <Box p={8} maxW="1000px" mx="auto">
+      <Heading as="h1" size="xl" mb={6} textAlign="center">
         Panel de Repartidor - Pedidos Pendientes
       </Heading>
+      <VStack spacing={6} align="stretch">
+        {pedidos.length === 0 ? (
+          <Text>No hay pedidos pendientes por ahora.</Text>
+        ) : (
+          pedidos.map((pedido) => (
+            <Card key={pedido.id} variant="outline" shadow="md">
+              <CardBody>
+                <HStack justify="space-between">
+                  
+                  {/* --- TAREA 2 (¡YA ESTÁ HECHA AQUÍ!) --- */}
+                  {/* Bastián ya guarda el email (Tarea 1) y este código ya lo muestra (Tarea 2) */}
+                  <Box>
+                    <Text fontWeight="bold" fontSize="lg">
+                      {/* Corregí 'pedido.cliente Email' a 'pedido.clienteEmail' (no puede tener espacio) */}
+                      Cliente: {pedido.clienteEmail || 'No especificado'}
+                    </Text>
+                    <Text fontSize="sm" color="gray.600">
+                      ID Pedido: {pedido.id}
+                    </Text>
+                  </Box>
+                  
+                  <Badge
+                    colorScheme={pedido.estado === 'Pendiente' ? 'red' : 'green'}
+                    fontSize="md"
+                    p={2}
+                    borderRadius="md"
+                  >
+                    {pedido.estado}
+                  </Badge>
+                </HStack>
 
-      <VStack spacing={4} align="stretch">
-        {pedidos.map((pedido) => (
-          // Usamos Card y Box de Chakra UI
-          <Card key={pedido.id} variant="outline">
-            <CardHeader>
-              {/* El 'id' viene de Firebase (ej: 4aT... ) */}
-              <Heading size="md">Pedido #{pedido.id}</Heading>
-            </CardHeader>
-            <CardBody>
-              {/* Estos nombres de campos (clienteId, total, items) deben coincidir 
-                con lo que Bastián guarda al usar 'createPedido'. 
-                Revisé el 'firebase.js' y Bastián probablemente guarde 'items' y 'total'.
-              */}
-              <Text><strong>Cliente ID:</strong> {pedido.clienteId || 'No especificado'}</Text>
-              <Text><strong>Total:</strong> ${pedido.total || 0}</Text>
-              <Text><strong>Estado:</strong> {pedido.estado || 'Pendiente'}</Text>
-              <Text><strong>Dirección:</strong> {pedido.direccionEntrega || 'Dirección no especificada'}</Text>
-              
-              <Heading size="sm" mt={3}>Items:</Heading>
-              {/* El campo 'items' que guarda Bastián es un array.
-                Lo recorremos para mostrar cada plato.
-              */}
-              {Array.isArray(pedido.items) ? (
-                pedido.items.map((item, index) => (
-                  <Text key={index} ml={4}>
-                    - {item.nombre} (Cantidad: {item.cantidad})
+                <Divider my={4} />
+
+                {/* Lista de Items */}
+                <VStack align="stretch" spacing={2} mb={4}>
+                  {pedido.items &&
+                    pedido.items.map((item) => (
+                      <HStack key={item.id} justify="space-between">
+                        <Text>
+                          ({item.cantidad}) {item.nombre}
+                        </Text>
+                        <Text>${item.precio * item.cantidad}</Text>
+                      </HStack>
+                    ))}
+                </VStack>
+
+                <Divider my={4} />
+
+                <HStack justify="space-between">
+                  <Box>
+                    {/* --- TAREA 3 (PREPARADA PARA LUCIANO) --- */}
+                    {/* Este es el espacio donde Luciano conectará sus botones */}
+                    <Text fontSize="sm" color="gray.500">
+                      (Aquí irán los botones de estado)
+                    </Text>
+                  </Box>
+                  <Text fontWeight="bold" fontSize="xl">
+                    Total: ${pedido.total}
                   </Text>
-                ))
-              ) : (
-                <Text>No se pudieron cargar los items.</Text>
-              )}
-            </CardBody>
-          </Card>
-        ))}
+                </HStack>
+              </CardBody>
+            </Card>
+          ))
+        )}
       </VStack>
     </Box>
   );
-};
+}
 
 export default RepartidorPanel;
