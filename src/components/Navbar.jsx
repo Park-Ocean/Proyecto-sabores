@@ -64,6 +64,16 @@ function NavBar() {
             Repartos
           </Link>
         )}
+
+        {/* --- ¡AQUÍ ESTÁ TU TAREA 4 (Paso 1) AÑADIDA --- */}
+        {/* Mostramos "Mi Cuenta" si el usuario está logueado (cualquier rol) */}
+        {currentUser && (
+          <Link as={RouterLink} to="/mi-cuenta" fontWeight="bold">
+            Mi Cuenta
+          </Link>
+        )}
+        {/* --- FIN DE LA TAREA --- */}
+        
       </HStack>
 
       <Spacer />
