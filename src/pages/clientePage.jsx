@@ -176,6 +176,7 @@ const ClientePanel = () => {
 
   // --- Pedido
   const handleConfirmarPedido = async () => {
+    // 1. Validaciones previas
     if (direccion.trim() === "") {
       toast({ title: "Dirección requerida", description: "Ingresa tu dirección de envío.", status: "warning" });
       return;
@@ -184,28 +185,46 @@ const ClientePanel = () => {
       toast({ title: "Tu carrito está vacío", status: "info" });
       return;
     }
+    // 2. NUEVA VALIDACIÓN DE SALDO
+    if (total > currentUser.saldo) {
+      toast({ 
+        title: "Saldo Insuficiente", 
+        description: `Tu saldo es de ${currency(currentUser.saldo)}, pero el pedido es de ${currency(total)}.`, 
+        status: "error",
+        duration: 5000 
+      });
+      return;
+    }
+
     setLoadingPedido(true);
+    
+    // 3. Preparamos el objeto del pedido
     const nuevoPedido = {
       clienteId: currentUser.uid,
       clienteEmail: currentUser.email,
       items: carrito,
-      total,
-      estado: "Pendiente",
+      total, // El 'total' ya incluye delivery y descuentos
       direccion,
       nota: nota || "",
       horaEntrega,
       cupom: cupom || "",
     };
+
     try {
-      await createPedido(nuevoPedido);
+      // 4. NUEVA LLAMADA A LA FUNCIÓN DE TRANSACCIÓN
+      // (Asegúrate de importar 'realizarPedidoConSaldo' desde firebase.js)
+      await realizarPedidoConSaldo(nuevoPedido); 
+      
       toast({ title: "¡Pedido realizado con éxito!", status: "success" });
+      // Limpiamos el carrito y formularios
       setCarrito([]);
       setDireccion("");
       setNota("");
       setCupom("");
       setHoraEntrega("Lo antes posible");
     } catch (error) {
-      toast({ title: "Error al enviar el pedido", status: "error" });
+      // El error de "Saldo insuficiente" de la transacción también se atrapará aquí
+      toast({ title: "Error al enviar el pedido", description: error.message, status: "error" });
     }
     setLoadingPedido(false);
   };
@@ -235,6 +254,11 @@ const ClientePanel = () => {
               </Tag>
               <Tag colorScheme="green" variant="subtle" size="sm">
                 <TagLabel>Puntos: 120</TagLabel>
+              </Tag>
+              <Tag colorScheme="green" variant="solid" size="lg" p={2} borderRadius="md">
+                <TagLabel fontSize="md" fontWeight="bold">
+                  Saldo: {currency(currentUser?.saldo)}
+                </TagLabel>
               </Tag>
             </HStack>
           </Box>
@@ -492,7 +516,24 @@ const ClientePanel = () => {
             </HStack>
           </Stack>
 
-          <Button colorScheme="green" width="full" onClick={handleConfirmarPedido} isLoading={loadingPedido} isDisabled={carrito.length === 0}>
+          {total > (currentUser?.saldo || 0) && (
+            <Text color="red.500" fontWeight="bold" textAlign="center" mb={3}>
+              ¡Saldo insuficiente para este pedido!
+            </Text>
+          )}
+          
+          <Button 
+            colorScheme="green" 
+            width="full" 
+            onClick={handleConfirmarPedido} 
+            isLoading={loadingPedido} 
+            // 5. NUEVA LÓGICA 'isDisabled'
+            isDisabled={
+              carrito.length === 0 || 
+              total > (currentUser?.saldo || 0) ||
+              direccion.trim() === ""
+            }
+          >
             Confirmar pedido
           </Button>
         </Box>
