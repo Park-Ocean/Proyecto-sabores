@@ -68,7 +68,7 @@ function NavBar() {
         {/* --- ¡AQUÍ ESTÁ TU TAREA 4 (Paso 1) AÑADIDA --- */}
         {/* Mostramos "Mi Cuenta" si el usuario está logueado (cualquier rol) */}
         {currentUser && (
-          <Link as={RouterLink} to="/mi-cuenta" fontWeight="bold">
+          <Link as={RouterLink} to="/cliente/micuenta" fontWeight="bold">
             Mi Cuenta
           </Link>
         )}

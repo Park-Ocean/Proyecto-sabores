@@ -7,10 +7,12 @@ import RutaProtegida from "./components/RutaProtegida.jsx";
 
 import HomePublic from "./pages/HomePublic.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
-import LoginPage from "./pages/LoginPage.jsx";
+import LoginPage from "./pages/loginPage.jsx";
 import ClientePanel from "./pages/clientePage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import RepartidorPanel from "./pages/repartidorPage.jsx";
+import MiCuentaPage from "./pages/MiCuentaPage.jsx";
+import Footer from "./components/Footer.jsx";
 
 export default function App() {
   return (
@@ -39,6 +41,16 @@ export default function App() {
             </RutaProtegida>
           }
         />
+
+        <Route
+          path="/cliente/micuenta"
+          element={
+            <RutaProtegida rolRequerido="cliente">
+              <MiCuentaPage />
+            </RutaProtegida>
+          }
+        />
+
         <Route
           path="/repartidor"
           element={
@@ -51,6 +63,7 @@ export default function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      <Footer/>
     </Container>
   );
 }
