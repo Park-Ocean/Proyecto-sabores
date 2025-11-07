@@ -283,7 +283,17 @@ const ClientePanel = () => {
           {platosFiltrados.length === 0 ? (
             <Center borderWidth="1px" borderRadius="lg" p={10} borderColor={borderCol}>
               <VStack spacing={4}>
-                <Image src={FALLBACK_SVG} alt="Sin resultados" boxSize="220px" objectFit="cover" borderRadius="lg" />
+                <Image
+                  src={plato.imgurl} // <-- CORRECTO
+                  alt={plato.nombre}
+                  objectFit="cover"
+                  w="100%"
+                  h="170px"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = FALLBACK_SVG;
+                  }}
+                />
                 <Heading size="md">No hay platos para mostrar</Heading>
                 <Text color="gray.500" textAlign="center">
                   Cambia la búsqueda o muestra platos no disponibles.
@@ -324,7 +334,7 @@ const ClientePanel = () => {
                   <CardBody pt={3} pb={2}>
                     <Box borderRadius="lg" overflow="hidden" borderWidth="1px" borderColor={borderCol}>
                       <Image
-                        src={plato.imgUrl}
+                        src={plato.imgurl}
                         alt={plato.nombre}
                         objectFit="cover"
                         w="100%"

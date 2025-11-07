@@ -19,7 +19,7 @@ import Footer from "./components/Footer.jsx";
 
 export default function App() {
   return (
-    <Container maxW="container.lg" py={4}>
+    <>
       <NavBar />
       <Routes>
         {/* Públicas */}
@@ -73,6 +73,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
       <Footer/>
-    </Container>
+    </>
   );
 }
