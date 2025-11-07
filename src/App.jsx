@@ -43,6 +43,14 @@ export default function App() {
           }
         />
         <Route
+          path="/mi-cuenta"
+          element={
+            <RutaProtegida rolRequerido={["admin", "cliente", "repartidor"]}>
+              <MiCuentaPage />
+            </RutaProtegida>
+          }
+        />
+        <Route
           path="/cliente"
           element={
             <RutaProtegida rolRequerido="cliente">
@@ -50,14 +58,14 @@ export default function App() {
             </RutaProtegida>
           }
         />
-        <Route 
-        path="/repartidor"
-        element={
-          <RutaProtegida rolRequerido="repartidor">
-            <RepartidorPanel />
-          </RutaProtegida>
-        }
-        /> 
+        <Route
+          path="/repartidor"
+          element={
+            <RutaProtegida rolRequerido="repartidor">
+              <RepartidorPanel />
+            </RutaProtegida>
+          }
+        />
         {/* Ruta por defecto: si no coincide nada, redirige a /login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
