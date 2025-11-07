@@ -19,7 +19,8 @@ import {
     where,
     serverTimestamp,
     orderBy,
-    setDoc
+    setDoc,
+    deleteDoc
 } from "firebase/firestore";
 
 // --- ¡IMPORTANTE! ---
@@ -201,6 +202,24 @@ export const createPlato = async (platoData) => {
   } catch (error) {
     console.error("Error al crear el plato:", error);
     throw error; // Lanza el error para que el formulario de Luciano lo atrape
+  }
+};
+
+/**
+ * (Para Luciano/Admin) Elimina permanentemente un plato de la colección 'platos'.
+ * @param {string} platoId - El ID del documento del plato a eliminar.
+ * @returns {Promise<void>}
+ */
+export const deletePlato = async (platoId) => {
+  // 1. Apunta al documento específico en la colección 'platos'
+  const platoDocRef = doc(db, "platos", platoId);
+  try {
+    // 2. Llama a la función para eliminar el documento
+    await deleteDoc(platoDocRef);
+    console.log("Plato eliminado exitosamente:", platoId);
+  } catch (error) {
+    console.error("Error al eliminar el plato:", error);
+    throw error; // Lanza el error para que el panel de admin lo atrape
   }
 };
 

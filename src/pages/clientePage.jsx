@@ -155,7 +155,10 @@ const ClientePanel = () => {
           <SimpleGrid columns={{ base: 1, md: 4 }} spacing={6}>
             {platos.map((plato) => (
               <Box key={plato.id} borderWidth="1px" borderRadius="lg" p={5}>
-                <Image src={plato.imgUrl}></Image>
+                <Image src={plato.imgUrl}
+                  boxSize="200px" 
+                  objectFit="cover" 
+                  alt={plato.nombre}></Image>
                 <Heading size="md">{plato.nombre}</Heading>
                 <Text fontSize="xl" fontWeight="bold" color="blue.600" my={2}>
                   ${plato.precio}

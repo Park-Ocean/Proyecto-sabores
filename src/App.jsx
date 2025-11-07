@@ -11,7 +11,7 @@ import RegisterPage from "./pages/RegisterPage.jsx";
 import RutaProtegida from "./components/RutaProtegida.jsx"; // Añadido
 import RepartidorPanel from "./pages/repartidorPage.jsx";
 import NavBar from "./components/Navbar.jsx";
-
+import MiCuentaPage from "./pages/MiCuentaPage.jsx";
 
 
 function Home() {
