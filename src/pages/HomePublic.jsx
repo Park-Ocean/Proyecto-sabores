@@ -18,6 +18,7 @@ import {
     useToast,
     Divider,
     Button,
+    position,
 } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 import { getPlatosDisponibles } from "../firebase.js";
@@ -62,7 +63,7 @@ export default function HomePublic() {
     }, [toast]);
 
     return (
-        <Box>
+        <Box maxW="container.xl" mx="auto" py={6} px={4}>
             {/* HERO */}
             <Box
                 borderRadius="2xl"

@@ -222,7 +222,7 @@ const ClientePanel = () => {
   const username = (currentUser?.email || "").split("@")[0];
 
   return (
-    <Container maxW="container.xl" py={6}>
+    <Container maxW="container.2xl" py={6}>
       {/* Header */}
       <HStack justify="space-between" align="center" mb={6}>
         <HStack spacing={4}>

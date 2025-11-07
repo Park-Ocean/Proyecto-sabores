@@ -18,7 +18,9 @@ import {
     where,
     serverTimestamp,
     orderBy,
-    setDoc
+    setDoc,
+    runTransaction,
+    increment
 } from "firebase/firestore";
 
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -64,7 +66,88 @@ export const logout = async () => {
     }
 };
 
+/**
+ * (Para Bastián) Crea un pedido usando una transacción para descontar el saldo.
+ * Esta función REEMPLAZA a createPedido.
+ * @param {Object} pedidoData - El objeto del pedido (debe incluir .total y .clienteId).
+ * @returns {Promise<string>} El ID del nuevo pedido.
+ */
+export const realizarPedidoConSaldo = async (pedidoData) => {
+  // 1. Referencia al documento del usuario (para descontar saldo)
+  const userDocRef = doc(db, "usuarios", pedidoData.clienteId);
+  
+  // 2. Referencia al NUEVO documento del pedido (generamos un ID por adelantado)
+  const newPedidoRef = doc(collection(db, "pedidos"));
 
+  try {
+    // 3. Ejecutamos la transacción
+    const pedidoId = await runTransaction(db, async (transaction) => {
+      // 4. (DENTRO DE LA TRANSACCIÓN) Lee el perfil del usuario
+      const userDoc = await transaction.get(userDocRef);
+      if (!userDoc.exists()) {
+        throw new Error("El perfil del usuario no existe.");
+      }
+
+      const saldoActual = userDoc.data().saldo || 0;
+      const totalPedido = pedidoData.total;
+
+      // 5. (DENTRO DE LA TRANSACCIÓN) Comprueba si hay saldo suficiente
+      if (saldoActual < totalPedido) {
+        // Lanza un error para cancelar la transacción
+        throw new Error("Saldo insuficiente para completar la compra.");
+      }
+
+      // 6. (DENTRO DE LA TRANSACCIÓN) Si hay saldo, descuéntalo
+      // Usamos 'increment' con un número negativo para seguridad
+      transaction.update(userDocRef, { 
+        saldo: increment(-totalPedido) 
+      });
+
+      // 7. (DENTRO DE LA TRANSACCIÓN) Crea el nuevo pedido
+      transaction.set(newPedidoRef, {
+        ...pedidoData,
+        estado: "Pendiente",
+        fechaCreacion: serverTimestamp(),
+      });
+
+      return newPedidoRef.id;
+    });
+
+    console.log("Pedido y descuento de saldo exitosos. ID:", pedidoId);
+    return pedidoId; // Devuelve el ID del pedido
+    
+  } catch (error) {
+    // Si el error fue 'Saldo insuficiente' o cualquier otro, la UI lo recibirá
+    console.error("Error en la transacción del pedido:", error.message);
+    throw error;
+  }
+};
+
+/**
+ * (Para Luciano/Admin) Añade saldo a la cuenta de un usuario.
+ * @param {string} userId - El UID del usuario al que se le cargará el saldo.
+ * @param {number} monto - La cantidad de saldo a añadir (debe ser positivo).
+ * @returns {Promise<void>}
+ */
+export const addSaldoToUser = async (userId, monto) => {
+  if (monto <= 0) {
+    throw new Error("El monto a añadir debe ser un número positivo.");
+  }
+
+  const userDocRef = doc(db, "usuarios", userId);
+
+  try {
+    // Usamos 'increment' para sumar de forma segura al saldo actual
+    // Si el campo 'saldo' no existe, lo creará con este valor.
+    await updateDoc(userDocRef, {
+      saldo: increment(monto)
+    });
+    console.log(`Se añadieron ${monto} al saldo del usuario ${userId}`);
+  } catch (error) {
+    console.error("Error al añadir saldo:", error);
+    throw error;
+  }
+};
 
 export const getUserProfile = async (uid) => {
   const userDocRef = doc(db, "usuarios", uid);

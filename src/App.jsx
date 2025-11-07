@@ -1,6 +1,6 @@
 // src/App.jsx
 import { Routes, Route, Navigate } from "react-router-dom";
-import { Container } from "@chakra-ui/react";
+import { Box, Container } from "@chakra-ui/react";
 
 import NavBar from "./components/Navbar.jsx";
 
