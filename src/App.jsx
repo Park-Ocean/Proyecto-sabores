@@ -60,7 +60,16 @@ export default function App() {
               <RepartidorPanel />
             </RutaProtegida>
           }
+          />
+        <Route
+          path="/micuenta"
+          element={
+            <RutaProtegida rolRequerido={["admin", "cliente", "repartidor"]}>
+              <MiCuentaPage />
+            </RutaProtegida>
+          }
         />
+
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
       <Footer/>
