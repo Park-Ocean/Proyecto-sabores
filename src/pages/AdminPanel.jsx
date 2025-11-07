@@ -1,5 +1,5 @@
 // src/pages/AdminPanel.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Heading,
@@ -21,13 +21,32 @@ import {
   Link,
   Textarea,
   Image,
+  useDisclosure,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  IconButton,
+  Tooltip,
 } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 import {
   getAllPlatos as getPlatos,
   updateDisponibilidad,
   createPlato,
+  deletePlato, // ⬅️ usar función de firebase.js
 } from "../firebase.js";
+
+const fmtCLP = (n) =>
+  n == null
+    ? ""
+    : new Intl.NumberFormat("es-CL", {
+        style: "currency",
+        currency: "CLP",
+        maximumFractionDigits: 0,
+      }).format(Number(n));
 
 export default function AdminPanel() {
   const [platos, setPlatos] = useState([]);
@@ -42,6 +61,12 @@ export default function AdminPanel() {
   const [disponible, setDisponible] = useState(false);
   const [creando, setCreando] = useState(false);
 
+  // Eliminar
+  const [eliminandoId, setEliminandoId] = useState(null);
+  const [platoAEliminar, setPlatoAEliminar] = useState(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const cancelRef = useRef();
+
   const toast = useToast();
 
   const cargarPlatos = async () => {
@@ -53,13 +78,16 @@ export default function AdminPanel() {
         precio: p.precio ?? null,
         descripcion: p.descripcion ?? "",
         imgurl: p.imgurl ?? "",
-        // acepta cualquiera de los dos campos; prioriza isDisponible
         isDisponible: p.isDisponible ?? p.disponible ?? false,
         disponible: p.disponible ?? p.isDisponible ?? false,
       }));
       setPlatos(normalizados);
     } catch (err) {
-      toast({ title: "Error cargando platos", description: String(err?.message || err), status: "error" });
+      toast({
+        title: "Error cargando platos",
+        description: String(err?.message || err),
+        status: "error",
+      });
     } finally {
       setCargando(false);
     }
@@ -76,12 +104,18 @@ export default function AdminPanel() {
       await updateDisponibilidad(platoId, nuevoEstado);
       setPlatos((prev) =>
         prev.map((p) =>
-          p.id === platoId ? { ...p, isDisponible: nuevoEstado, disponible: nuevoEstado } : p
+          p.id === platoId
+            ? { ...p, isDisponible: nuevoEstado, disponible: nuevoEstado }
+            : p
         )
       );
       toast({ title: "Disponibilidad cambiada", status: "success" });
     } catch (err) {
-      toast({ title: "No se pudo actualizar", description: String(err?.message || err), status: "error" });
+      toast({
+        title: "No se pudo actualizar",
+        description: String(err?.message || err),
+        status: "error",
+      });
     } finally {
       setActualizando(null);
     }
@@ -92,12 +126,13 @@ export default function AdminPanel() {
     try {
       setCreando(true);
       const precioNumber = precio === "" ? null : Number(precio);
+
       const docRef = await createPlato({
         nombre: nombre.trim(),
         precio: precioNumber,
         descripcion,
         imgurl,
-        isDisponible: disponible, // esto tambi&eacute;n setea 'disponible' en firebase
+        isDisponible: disponible, // en firebase.js también setea 'disponible'
       });
 
       const nuevo = {
@@ -118,9 +153,44 @@ export default function AdminPanel() {
       setDisponible(false);
       toast({ title: "Plato creado", description: nuevo.nombre, status: "success" });
     } catch (err) {
-      toast({ title: "No se pudo crear", description: String(err?.message || err), status: "error" });
+      toast({
+        title: "No se pudo crear",
+        description: String(err?.message || err),
+        status: "error",
+      });
     } finally {
       setCreando(false);
+    }
+  };
+
+  // --- Eliminar Plato ---
+  const pedirConfirmacionEliminar = (plato) => {
+    setPlatoAEliminar(plato);
+    onOpen();
+  };
+
+  const confirmarEliminar = async () => {
+    if (!platoAEliminar?.id) return;
+    const id = platoAEliminar.id;
+    setEliminandoId(id);
+    try {
+      await deletePlato(id);
+      setPlatos((prev) => prev.filter((p) => p.id !== id));
+      toast({
+        title: "Plato eliminado",
+        description: platoAEliminar.nombre || id,
+        status: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "No se pudo eliminar",
+        description: String(err?.message || err),
+        status: "error",
+      });
+    } finally {
+      setEliminandoId(null);
+      setPlatoAEliminar(null);
+      onClose();
     }
   };
 
@@ -142,7 +212,6 @@ export default function AdminPanel() {
         <Link as={RouterLink} to="/cliente" color="teal.500" fontWeight="semibold">
           Ir al Home
         </Link>
-        {/* Se removió botón "Salir" */}
       </HStack>
 
       {/* Formulario */}
@@ -151,7 +220,11 @@ export default function AdminPanel() {
         <Stack spacing={4}>
           <FormControl isRequired>
             <FormLabel>Nombre</FormLabel>
-            <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Lomo Saltado" />
+            <Input
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Ej: Lomo Saltado"
+            />
           </FormControl>
 
           <FormControl>
@@ -224,7 +297,7 @@ export default function AdminPanel() {
                     <Text fontWeight="semibold">{plato.nombre}</Text>
                     {plato.precio != null && (
                       <Text fontSize="sm" color="gray.600">
-                        $ {Number(plato.precio).toLocaleString()}
+                        {fmtCLP(plato.precio)}
                       </Text>
                     )}
                     {plato.descripcion ? (
@@ -236,20 +309,76 @@ export default function AdminPanel() {
                 </HStack>
 
                 <HStack>
-                  <Text fontSize="sm">
+                  <Text fontSize="sm" mr={2}>
                     {plato.isDisponible ? "Disponible" : "No disponible"}
                   </Text>
                   <Switch
                     isChecked={plato.isDisponible}
-                    isDisabled={actualizando === plato.id}
+                    isDisabled={actualizando === plato.id || eliminandoId === plato.id}
                     onChange={(e) => onToggle(plato.id, e.target.checked)}
                   />
+                  <Tooltip label="Eliminar plato" hasArrow>
+                    <IconButton
+                      aria-label="Eliminar plato"
+                      size="sm"
+                      ml={2}
+                      colorScheme="red"
+                      variant="outline"
+                      isLoading={eliminandoId === plato.id}
+                      onClick={() => pedirConfirmacionEliminar(plato)}
+                      icon={
+                        // pequeño ícono X sin dependencias externas
+                        <Box as="span" fontWeight="bold" lineHeight="0">
+                          ×
+                        </Box>
+                      }
+                    />
+                  </Tooltip>
                 </HStack>
               </HStack>
             </ListItem>
           ))}
         </List>
       )}
+
+      {/* Modal de confirmación de borrado */}
+      <AlertDialog
+        isOpen={isOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={() => {
+          if (!eliminandoId) onClose();
+        }}
+        isCentered
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Eliminar plato
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              ¿Seguro que quieres eliminar{" "}
+              <b>{platoAEliminar?.nombre || "este plato"}</b>? Esta acción no
+              se puede deshacer.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onClose} isDisabled={!!eliminandoId}>
+                Cancelar
+              </Button>
+              <Button
+                colorScheme="red"
+                onClick={confirmarEliminar}
+                ml={3}
+                isLoading={!!eliminandoId}
+                loadingText="Eliminando…"
+              >
+                Eliminar
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 }

@@ -1,8 +1,9 @@
-import React from "react";
+// src/components/RutaProtegida.jsx
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext.jsx";
+import { Spinner, Center } from "@chakra-ui/react";
 
-const RutaProtegida = ({ children, rolRequerido }) => {
+export default function RutaProtegida({ rolRequerido, children }) {
   const { currentUser } = useAuth();
 
   if (!currentUser) {
@@ -28,6 +29,4 @@ const RutaProtegida = ({ children, rolRequerido }) => {
   }
 
   return children;
-};
-
-export default RutaProtegida;
+}

@@ -1,11 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { Center, Spinner } from "@chakra-ui/react";
-// --- PASO 1: Importa 'logout' ---
-import { auth, getUserProfile, logout } from "../firebase";
+
+import { auth, getUserProfile, logout } from "../firebase.js";
 
 const AuthContext = createContext();
-
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
