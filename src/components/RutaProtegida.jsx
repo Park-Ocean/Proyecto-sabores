@@ -6,11 +6,26 @@ import { Spinner, Center } from "@chakra-ui/react";
 export default function RutaProtegida({ rolRequerido, children }) {
   const { currentUser } = useAuth();
 
-  // Si tu AuthProvider ya espera el loading, aquí podemos no renderizar spinner extra.
-  if (!currentUser) return <Navigate to="/login" replace />;
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  if (currentUser.role === "superadmin") {
+    return children;
+  }
 
-  if (rolRequerido && currentUser.role !== rolRequerido) {
-    return <Navigate to="/" replace />;
+  if (rolRequerido) {
+    let tienePermiso = false;
+
+    if (Array.isArray(rolRequerido)) {
+      tienePermiso = rolRequerido.includes(currentUser.role);
+    } else {
+      tienePermiso = currentUser.role === rolRequerido;
+    }
+
+    if (!tienePermiso) {
+      return <Navigate to="/login" replace />;
+    }
   }
 
   return children;

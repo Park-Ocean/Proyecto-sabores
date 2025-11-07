@@ -6,6 +6,12 @@ import {
   onAuthStateChanged,
   signOut,
   createUserWithEmailAndPassword,
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+  createUserWithEmailAndPassword,
 } from "firebase/auth";
 import { 
     getFirestore,
@@ -23,8 +29,9 @@ import {
     deleteDoc
 } from "firebase/firestore";
 
-// --- ¡IMPORTANTE! ---
-// Configuración de Firebase
+import { getFunctions, httpsCallable } from "firebase/functions";
+// -----------------------------
+
 const firebaseConfig = {
   apiKey: "AIzaSyBY2v5ip4Ozmqp3Qc4ZIyDOoJceo_SwVBs",
   authDomain: "sabores-web.firebaseapp.com",
@@ -33,15 +40,14 @@ const firebaseConfig = {
   messagingSenderId: "726699207665",
   appId: "1:726699207665:web:c5acc57103eb5c4c297250",
 };
-
-// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
 // Instancias
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// --- Auth ---
+export const functions = getFunctions(app);
+
 export const login = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(
@@ -68,11 +74,16 @@ export const logout = async () => {
 
 export const getUserProfile = async (uid) => {
   const userDocRef = doc(db, "usuarios", uid);
-  const snap = await getDoc(userDocRef);
-  if (snap.exists()) return snap.data(); // { email, rol, ... }
-  console.error("No existe perfil de usuario para el UID:", uid);
-  return null;
+  const userDocSnap = await getDoc(userDocRef);
+
+  if (userDocSnap.exists()) {
+    return userDocSnap.data();
+  } else {
+    console.error("No existe perfil de usuario para el UID:", uid);
+    return null;
+  }
 };
+
 
 export const registerClient = async (email, password, additionalData) => {
   try {
@@ -81,22 +92,39 @@ export const registerClient = async (email, password, additionalData) => {
       email,
       password
     );
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
     const user = userCredential.user;
-
     const userDocRef = doc(db, "usuarios", user.uid);
     const userData = {
       uid: user.uid,
       email: user.email,
       rol: "cliente",
       ...additionalData,
+      rol: "cliente",
+      ...additionalData,
     };
     await setDoc(userDocRef, userData);
     return userCredential;
   } catch (error) {
-    console.error("Error en el registro de cliente:", error.code, error.message);
+    if (error.code === "auth/email-already-in-use") {
+      console.error("Error: El correo electrónico ya está en uso.");
+    } else if (error.code === "auth/weak-password") {
+      console.error("Error: La contraseña es demasiado débil.");
+    } else {
+      console.error(
+        "Error en el registro de cliente:",
+        error.code,
+        error.message
+      );
+    }
     throw error;
   }
 };
+
 
 export const onAuthStateChangedHelper = (callback) => {
   return onAuthStateChanged(auth, callback);
@@ -104,9 +132,14 @@ export const onAuthStateChangedHelper = (callback) => {
 
 // --- Platos ---
 export const getAllPlatos = async () => {
-  const ref = collection(db, "platos");
-  const qs = await getDocs(ref);
-  return qs.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const platosCollectionRef = collection(db, "platos");
+  const querySnapshot = await getDocs(platosCollectionRef);
+
+  const platos = querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+  return platos;
 };
 
 export const getPlatosDisponibles = async () => {
@@ -159,12 +192,6 @@ export const deletePlato = async (platoId) => {
   }
 };
 
-/**
- * (Para Luciano) Actualiza el estado de disponibilidad de un plato.
- * @param {string} platoId - El ID del documento del plato a actualizar.
- * @param {boolean} estado - El nuevo estado (true para disponible, false para no disponible).
- * @returns {Promise<void>}
- */
 export const updateDisponibilidad = async (platoId, estado) => {
   const platoDocRef = doc(db, "platos", platoId);
   try {
