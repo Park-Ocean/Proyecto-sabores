@@ -29,6 +29,15 @@ import {
   createPlato,
 } from "../firebase.js";
 
+const fmtCLP = (n) =>
+  n == null
+    ? ""
+    : new Intl.NumberFormat("es-CL", {
+        style: "currency",
+        currency: "CLP",
+        maximumFractionDigits: 0,
+      }).format(Number(n));
+
 export default function AdminPanel() {
   const [platos, setPlatos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -53,13 +62,16 @@ export default function AdminPanel() {
         precio: p.precio ?? null,
         descripcion: p.descripcion ?? "",
         imgurl: p.imgurl ?? "",
-        // acepta cualquiera de los dos campos; prioriza isDisponible
         isDisponible: p.isDisponible ?? p.disponible ?? false,
         disponible: p.disponible ?? p.isDisponible ?? false,
       }));
       setPlatos(normalizados);
     } catch (err) {
-      toast({ title: "Error cargando platos", description: String(err?.message || err), status: "error" });
+      toast({
+        title: "Error cargando platos",
+        description: String(err?.message || err),
+        status: "error",
+      });
     } finally {
       setCargando(false);
     }
@@ -76,12 +88,18 @@ export default function AdminPanel() {
       await updateDisponibilidad(platoId, nuevoEstado);
       setPlatos((prev) =>
         prev.map((p) =>
-          p.id === platoId ? { ...p, isDisponible: nuevoEstado, disponible: nuevoEstado } : p
+          p.id === platoId
+            ? { ...p, isDisponible: nuevoEstado, disponible: nuevoEstado }
+            : p
         )
       );
       toast({ title: "Disponibilidad cambiada", status: "success" });
     } catch (err) {
-      toast({ title: "No se pudo actualizar", description: String(err?.message || err), status: "error" });
+      toast({
+        title: "No se pudo actualizar",
+        description: String(err?.message || err),
+        status: "error",
+      });
     } finally {
       setActualizando(null);
     }
@@ -92,12 +110,13 @@ export default function AdminPanel() {
     try {
       setCreando(true);
       const precioNumber = precio === "" ? null : Number(precio);
+
       const docRef = await createPlato({
         nombre: nombre.trim(),
         precio: precioNumber,
         descripcion,
         imgurl,
-        isDisponible: disponible, // esto tambi&eacute;n setea 'disponible' en firebase
+        isDisponible: disponible, // setea también 'disponible' en firebase.js
       });
 
       const nuevo = {
@@ -118,7 +137,11 @@ export default function AdminPanel() {
       setDisponible(false);
       toast({ title: "Plato creado", description: nuevo.nombre, status: "success" });
     } catch (err) {
-      toast({ title: "No se pudo crear", description: String(err?.message || err), status: "error" });
+      toast({
+        title: "No se pudo crear",
+        description: String(err?.message || err),
+        status: "error",
+      });
     } finally {
       setCreando(false);
     }
@@ -142,7 +165,6 @@ export default function AdminPanel() {
         <Link as={RouterLink} to="/cliente" color="teal.500" fontWeight="semibold">
           Ir al Home
         </Link>
-        {/* Se removió botón "Salir" */}
       </HStack>
 
       {/* Formulario */}
@@ -151,7 +173,11 @@ export default function AdminPanel() {
         <Stack spacing={4}>
           <FormControl isRequired>
             <FormLabel>Nombre</FormLabel>
-            <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Lomo Saltado" />
+            <Input
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Ej: Lomo Saltado"
+            />
           </FormControl>
 
           <FormControl>
@@ -224,7 +250,7 @@ export default function AdminPanel() {
                     <Text fontWeight="semibold">{plato.nombre}</Text>
                     {plato.precio != null && (
                       <Text fontSize="sm" color="gray.600">
-                        $ {Number(plato.precio).toLocaleString()}
+                        {fmtCLP(plato.precio)}
                       </Text>
                     )}
                     {plato.descripcion ? (
