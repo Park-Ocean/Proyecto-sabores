@@ -7,6 +7,8 @@ import AdminPanel from "./pages/AdminPanel.jsx";
 import LoginPage from "./pages/loginPage.jsx"; 
 import ClientePanel from "./pages/clientePage.jsx"; 
 import RegisterPage from "./pages/RegisterPage.jsx"; 
+import MiCuentaPage from "./pages/MiCuentaPage.jsx";
+import SuperAdminPanel from "./pages/SuperAdminPanel.jsx";
 // --- COMPONENTE DE AUTENTICACIÓN ---
 import RutaProtegida from "./components/RutaProtegida.jsx"; // Añadido
 import RepartidorPanel from "./pages/repartidorPage.jsx";
@@ -59,6 +61,22 @@ export default function App() {
           }
         />
         <Route
+          path="/superadmin"
+          element={
+            <RutaProtegida rolRequerido="superadmin">
+              <SuperAdminPanel />
+            </RutaProtegida>
+          }
+        />
+        <Route
+          path="/superadmin"
+          element={
+            <RutaProtegida rolRequerido="superadmin">
+              <SuperAdminPanel />
+            </RutaProtegida>
+          }
+        />
+        <Route
           path="/repartidor"
           element={
             <RutaProtegida rolRequerido="repartidor">
@@ -66,7 +84,6 @@ export default function App() {
             </RutaProtegida>
           }
         />
-        {/* Ruta por defecto: si no coincide nada, redirige a /login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Container>

@@ -1,285 +1,232 @@
 import { initializeApp } from "firebase/app";
-import { 
-    getAuth, 
-    signInWithEmailAndPassword,
-    // Nota: Agregaremos onAuthStateChanged para el AuthContext de Bastián
-    onAuthStateChanged,
-    signOut,
-    createUserWithEmailAndPassword 
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+  createUserWithEmailAndPassword,
 } from "firebase/auth";
-import { 
-    getFirestore,
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    addDoc,
-    updateDoc,
-    query,
-    where,
-    serverTimestamp,
-    orderBy,
-    setDoc
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  query,
+  where,
+  serverTimestamp,
+  orderBy,
+  setDoc,
 } from "firebase/firestore";
 
-// --- ¡IMPORTANTE! ---
-// Pega aquí tu objeto de configuración de Firebase
-// Lo encuentras en tu Proyecto -> Configuración del proyecto -> Tus apps -> Configuración de SDK
+import { getFunctions, httpsCallable } from "firebase/functions";
+// -----------------------------
+
 const firebaseConfig = {
   apiKey: "AIzaSyBY2v5ip4Ozmqp3Qc4ZIyDOoJceo_SwVBs",
   authDomain: "sabores-web.firebaseapp.com",
   projectId: "sabores-web",
   storageBucket: "sabores-web.firebasestorage.app",
   messagingSenderId: "726699207665",
-  appId: "1:726699207665:web:c5acc57103eb5c4c297250"
+  appId: "1:726699207665:web:c5acc57103eb5c4c297250",
 };
-// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Obtener instancias de los servicios
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-/**
- * Inicia sesión de un usuario con email y contraseña.
- * @param {string} email - El email del usuario.
- * @param {string} password - La contraseña del usuario.
- * @returns {Promise<UserCredential>} El objeto UserCredential de Firebase.
- */
+export const functions = getFunctions(app);
+
 export const login = async (email, password) => {
-    try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        return userCredential;
-    } catch (error) {
-        console.error("Error en login:", error.code, error.message);
-        throw error; // Lanza el error para que el componente de login lo atrape
-    }
+  try {
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+    return userCredential;
+  } catch (error) {
+    console.error("Error en login:", error.code, error.message);
+    throw error;
+  }
 };
 
-/**
- * Cierra la sesión del usuario actual.
- * @returns {Promise<void>}
- */
 export const logout = async () => {
-    try {
-        await signOut(auth);
-        console.log("Usuario deslogueado exitosamente");
-    } catch (error) {
-        console.error("Error en logout:", error.code, error.message);
-        throw error;
-    }
+  try {
+    await signOut(auth);
+    console.log("Usuario deslogueado exitosamente");
+  } catch (error) {
+    console.error("Error en logout:", error.code, error.message);
+    throw error;
+  }
 };
 
-/**
- * (BONUS - Bastián lo necesitará 100%)
- * Obtiene el perfil de un usuario desde la colección 'usuarios' en Firestore.
- * @param {string} uid - El User ID (uid) de Firebase Auth.
- * @returns {Promise<Object|null>} El objeto con los datos del usuario (email, rol) o null si no existe.
- */
 export const getUserProfile = async (uid) => {
-    const userDocRef = doc(db, "usuarios", uid);
-    const userDocSnap = await getDoc(userDocRef);
+  const userDocRef = doc(db, "usuarios", uid);
+  const userDocSnap = await getDoc(userDocRef);
 
-    if (userDocSnap.exists()) {
-        return userDocSnap.data(); // Retorna { email: "...", rol: "..." }
-    } else {
-        console.error("No existe perfil de usuario para el UID:", uid);
-        return null;
-    }
+  if (userDocSnap.exists()) {
+    return userDocSnap.data();
+  } else {
+    console.error("No existe perfil de usuario para el UID:", uid);
+    return null;
+  }
 };
 
-/**
- * Registra un NUEVO usuario (solo clientes) en Authentication
- * y crea su documento de perfil en Firestore.
- * @param {string} email - El email para el nuevo usuario.
- * @param {string} password - La contraseña para el nuevo usuario.
- * @param {Object} additionalData - Datos adicionales (ej. { nombre: "Juan Pérez" }).
- * @returns {Promise<UserCredential>} El objeto UserCredential de Firebase (para auto-login).
- */
+
 export const registerClient = async (email, password, additionalData) => {
   try {
-    // 1. Crear el usuario en Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
     const user = userCredential.user;
-
-    // 2. Crear el documento de perfil en Firestore
-    // Apuntamos a un nuevo documento en 'usuarios' usando el UID como ID
     const userDocRef = doc(db, "usuarios", user.uid);
-
-    // Preparamos los datos del perfil
     const userData = {
       uid: user.uid,
       email: user.email,
-      rol: "cliente", // ¡IMPORTANTE! Rol hardcodeado a 'cliente'
-      ...additionalData // Esto permite añadir { nombre: "..." } etc.
+      rol: "cliente",
+      ...additionalData,
     };
-
-    // Escribimos el documento en la base de datos
     await setDoc(userDocRef, userData);
-
-    // Devolvemos el usuario para que el AuthContext lo reconozca (auto-login)
     return userCredential;
-    
   } catch (error) {
-    // Maneja errores comunes de registro
-    if (error.code === 'auth/email-already-in-use') {
+    if (error.code === "auth/email-already-in-use") {
       console.error("Error: El correo electrónico ya está en uso.");
-    } else if (error.code === 'auth/weak-password') {
+    } else if (error.code === "auth/weak-password") {
       console.error("Error: La contraseña es demasiado débil.");
     } else {
-      console.error("Error en el registro de cliente:", error.code, error.message);
+      console.error(
+        "Error en el registro de cliente:",
+        error.code,
+        error.message
+      );
     }
-    throw error; // Lanza el error para que el formulario de UI lo atrape
+    throw error;
   }
 };
 
-/**
- * (BONUS - Bastián lo necesitará)
- * Observador que detecta cambios en el estado de autenticación.
- * Llama a un callback con el usuario (o null).
- * @param {function} callback - Función a la que se le pasará el usuario.
- * @returns {Unsubscribe} Función para desuscribirse del observador.
- */
+
 export const onAuthStateChangedHelper = (callback) => {
-    return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(auth, callback);
 };
 
-// --- Funciones para Platos (Luciano y Bastián) ---
 
-/**
- * (Para Luciano) Obtiene TODOS los platos de la colección 'platos'.
- * @returns {Promise<Array<Object>>} Un array de objetos, cada uno es un plato con su ID.
- */
 export const getAllPlatos = async () => {
-    const platosCollectionRef = collection(db, "platos");
-    const querySnapshot = await getDocs(platosCollectionRef);
-    
-    const platos = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    }));
-    return platos;
+  const platosCollectionRef = collection(db, "platos");
+  const querySnapshot = await getDocs(platosCollectionRef);
+
+  const platos = querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+  return platos;
 };
 
-/**
- * (Para Bastián) Obtiene solo los platos que tienen 'isDisponible' en true.
- * @returns {Promise<Array<Object>>} Un array de platos disponibles con su ID.
- */
 export const getPlatosDisponibles = async () => {
-    const platosCollectionRef = collection(db, "platos");
-    const q = query(platosCollectionRef, where("isDisponible", "==", true));
-    const querySnapshot = await getDocs(q);
+  const platosCollectionRef = collection(db, "platos");
+  const q = query(platosCollectionRef, where("isDisponible", "==", true));
+  const querySnapshot = await getDocs(q);
 
-    const platosDisponibles = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    }));
-    return platosDisponibles;
+  const platosDisponibles = querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+  return platosDisponibles;
 };
 
-/**
- * (Para Luciano) Crea un nuevo documento en la colección 'platos'.
- * @param {Object} platoData - El objeto con los datos del nuevo plato (nombre, precio, etc.).
- * @returns {Promise<DocumentReference>} Referencia al documento recién creado.
- */
 export const createPlato = async (platoData) => {
-  // 1. Apunta a la colección 'platos'.
   const platosCollectionRef = collection(db, "platos");
   try {
-    // 2. Preparamos el objeto completo con un valor por defecto.
     const nuevoPlato = {
       ...platoData,
-      isDisponible: false // Por defecto, un plato nuevo no está disponible
+      isDisponible: false,
     };
-
-    // 3. Añadimos el documento a la colección.
     const docRef = await addDoc(platosCollectionRef, nuevoPlato);
-    
     console.log("Nuevo plato creado con ID:", docRef.id);
-    return docRef; // Devuelve la referencia
-    
+    return docRef;
   } catch (error) {
     console.error("Error al crear el plato:", error);
-    throw error; // Lanza el error para que el formulario de Luciano lo atrape
+    throw error;
   }
 };
 
-/**
- * (Para Luciano) Actualiza el estado de disponibilidad de un plato.
- * @param {string} platoId - El ID del documento del plato a actualizar.
- * @param {boolean} estado - El nuevo estado (true para disponible, false para no disponible).
- * @returns {Promise<void>}
- */
 export const updateDisponibilidad = async (platoId, estado) => {
-    const platoDocRef = doc(db, "platos", platoId);
-    try {
-        await updateDoc(platoDocRef, {
-            isDisponible: estado
-        });
-        console.log("Disponibilidad actualizada para el plato:", platoId);
-    } catch (error) {
-        console.error("Error al actualizar disponibilidad:", error);
-        throw error;
-    }
+  const platoDocRef = doc(db, "platos", platoId);
+  try {
+    await updateDoc(platoDocRef, {
+      isDisponible: estado,
+    });
+    console.log("Disponibilidad actualizada para el plato:", platoId);
+  } catch (error) {
+    console.error("Error al actualizar disponibilidad:", error);
+    throw error;
+  }
 };
 
-// --- Funciones para Pedidos (Bastián y Constanza) ---
 
-/**
- * (Para Bastián) Crea un nuevo documento en la colección 'pedidos'.
- * @param {Object} pedido - El objeto del pedido (ej. { items: [...], total: 12000, clienteId: "..." }).
- * @returns {Promise<DocumentReference>} Referencia al documento recién creado.
- */
 export const createPedido = async (pedido) => {
-    const pedidosCollectionRef = collection(db, "pedidos");
-    try {
-        const docRef = await addDoc(pedidosCollectionRef, {
-            ...pedido,
-            estado: "Pendiente", // Estado inicial
-            fechaCreacion: serverTimestamp() // Marca de tiempo del servidor
-        });
-        console.log("Pedido creado con ID:", docRef.id);
-        return docRef;
-    } catch (error) {
-        console.error("Error al crear pedido:", error);
-        throw error;
-    }
+  const pedidosCollectionRef = collection(db, "pedidos");
+  try {
+    const docRef = await addDoc(pedidosCollectionRef, {
+      ...pedido,
+      estado: "Pendiente",
+      fechaCreacion: serverTimestamp(),
+    });
+    console.log("Pedido creado con ID:", docRef.id);
+    return docRef;
+  } catch (error) {
+    console.error("Error al crear pedido:", error);
+    throw error;
+  }
 };
 
-/**
- * (Para Luciano/Constanza) Actualiza el estado de un pedido (ej. "En Camino", "Entregado").
- * @param {string} pedidoId - El ID del documento del pedido a actualizar.
- * @param {string} nuevoEstado - El nuevo estado (ej. "En Camino").
- * @returns {Promise<void>}
- */
 export const updatePedidoEstado = async (pedidoId, nuevoEstado) => {
-  // Apunta al documento específico en la colección 'pedidos'
   const pedidoDocRef = doc(db, "pedidos", pedidoId);
   try {
-    // Actualiza solo el campo 'estado'
     await updateDoc(pedidoDocRef, {
       estado: nuevoEstado,
     });
     console.log("Estado del pedido actualizado:", pedidoId, "a", nuevoEstado);
   } catch (error) {
     console.error("Error al actualizar estado del pedido:", error);
-    throw error; // Lanza el error para que el componente lo atrape
+    throw error;
   }
 };
 
-/**
- * (Para Constanza) Obtiene todos los pedidos, ordenados por fecha de creación (más nuevos primero).
- * @returns {Promise<Array<Object>>} Un array de objetos, cada uno es un pedido con su ID.
- */
 export const getPedidos = async () => {
-    const pedidosCollectionRef = collection(db, "pedidos");
-    // Ordenamos por fecha de creación en orden descendente
-    const q = query(pedidosCollectionRef, orderBy("fechaCreacion", "desc"));
-    const querySnapshot = await getDocs(q);
-    
-    const pedidos = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    }));
-    return pedidos;
+  const pedidosCollectionRef = collection(db, "pedidos");
+  const q = query(pedidosCollectionRef, orderBy("fechaCreacion", "desc"));
+  const querySnapshot = await getDocs(q);
+
+  const pedidos = querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+  return pedidos;
+};
+
+
+/**
+ * un usuario de forma segura y SIN CERRAR SESIÓN.
+ * @param {string} email
+ * @param {string} password
+ * @param {string} rol ('admin' o 'repartidor')
+ * @returns {Promise<Object>} La respuesta de la Cloud Function (ej. { success: true, ... })
+ */
+export const callCreateUserWithRole = async (email, password, rol) => {
+  const crearUsuario = httpsCallable(functions, "crearUsuarioConRol");
+
+  try {
+    // Llama a la nube y le pasa los datos
+    const result = await crearUsuario({ email, password, rol });
+    return result.data; // Devuelve { success: true, message: "..." }
+  } catch (error) {
+    // Atrapa errores como "permission-denied"
+    console.error("Error al llamar a la Cloud Function:", error);
+    throw new Error(error.message);
+  }
 };

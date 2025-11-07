@@ -1,11 +1,8 @@
-// src/context/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { Center, Spinner } from "@chakra-ui/react";
-
-// --- CORRECCIÓN 1 ---
-// Importamos 'auth' y la función con el nombre correcto: 'getUserProfile'
-import { auth, getUserProfile, logout } from "../firebase"; //aqui iba el auth    /auth,getuserprofile
+// --- PASO 1: Importa 'logout' ---
+import { auth, getUserProfile, logout } from "../firebase";
 
 const AuthContext = createContext();
 
@@ -17,27 +14,31 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      //aqui iba el auth auth,  async
       if (user) {
         try {
-          // --- CORRECCIÓN 2 ---
-          // Usamos la función con el nombre correcto: 'getUserProfile'
-          const userProfile = await getUserProfile(user.uid);
+          const idTokenResult = await user.getIdTokenResult(true);
+          const userRole = idTokenResult.claims.rol;
 
-          if (userProfile && userProfile.rol) {
+          if (userRole) {
             setCurrentUser({
               uid: user.uid,
               email: user.email,
-              role: userProfile.rol, // Usamos el campo 'rol' de Firestore
+              role: userRole,
             });
           } else {
-            console.error(
-              "Usuario logueado, pero no tiene perfil o rol en Firestore."
-            );
-            setCurrentUser(null);
+            const userProfile = await getUserProfile(user.uid);
+            if (userProfile && userProfile.rol) {
+              setCurrentUser({
+                uid: user.uid,
+                email: user.email,
+                role: userProfile.rol,
+              });
+            } else {
+              setCurrentUser(null);
+            }
           }
         } catch (error) {
-          console.error("Error al obtener perfil de usuario", error);
+          console.error("Error al obtener token/perfil", error);
           setCurrentUser(null);
         }
       } else {
@@ -49,10 +50,8 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  const value = {
-    currentUser,
-    logout,
-  };
+  // --- PASO 2: Añade 'logout' al 'value' ---
+  const value = { currentUser, logout };
 
   if (loading) {
     return (

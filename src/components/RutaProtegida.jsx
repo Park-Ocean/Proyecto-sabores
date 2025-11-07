@@ -8,6 +8,10 @@ const RutaProtegida = ({ children, rolRequerido }) => {
   if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
+  
+  if (currentUser.role === "superadmin") {
+    return children;
+  }
 
   if (rolRequerido) {
     let tienePermiso = false;
