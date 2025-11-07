@@ -1,4 +1,3 @@
-// src/firebase.js
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -19,8 +18,7 @@ import {
     where,
     serverTimestamp,
     orderBy,
-    setDoc,
-    deleteDoc
+    setDoc
 } from "firebase/firestore";
 
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -32,38 +30,38 @@ const firebaseConfig = {
   projectId: "sabores-web",
   storageBucket: "sabores-web.firebasestorage.app",
   messagingSenderId: "726699207665",
-  appId: "1:726699207665:web:c5acc57103eb5c4c297250",
+  appId: "1:726699207665:web:c5acc57103eb5c4c297250"
 };
 const app = initializeApp(firebaseConfig);
 
-// Instancias
+// Obtener instancias de los servicios
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 export const functions = getFunctions(app);
 
 export const login = async (email, password) => {
-  try {
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
-    return userCredential;
-  } catch (error) {
-    console.error("Error en login:", error.code, error.message);
-    throw error;
-  }
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        return userCredential;
+    } catch (error) {
+        console.error("Error en login:", error.code, error.message);
+        throw error; // Lanza el error para que el componente de login lo atrape
+    }
 };
 
+/**
+ * Cierra la sesión del usuario actual.
+ * @returns {Promise<void>}
+ */
 export const logout = async () => {
-  try {
-    await signOut(auth);
-    console.log("Usuario deslogueado exitosamente");
-  } catch (error) {
-    console.error("Error en logout:", error.code, error.message);
-    throw error;
-  }
+    try {
+        await signOut(auth);
+        console.log("Usuario deslogueado exitosamente");
+    } catch (error) {
+        console.error("Error en logout:", error.code, error.message);
+        throw error;
+    }
 };
 
 
@@ -83,13 +81,12 @@ export const getUserProfile = async (uid) => {
 
 export const registerClient = async (email, password, additionalData) => {
   try {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+    // 1. Crear el usuario en Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     const userDocRef = doc(db, "usuarios", user.uid);
+
+    // Preparamos los datos del perfil
     const userData = {
       uid: user.uid,
       email: user.email,
@@ -98,8 +95,13 @@ export const registerClient = async (email, password, additionalData) => {
       rol: "cliente",
       ...additionalData,
     };
+
+    // Escribimos el documento en la base de datos
     await setDoc(userDocRef, userData);
+
+    // Devolvemos el usuario para que el AuthContext lo reconozca (auto-login)
     return userCredential;
+    
   } catch (error) {
     if (error.code === "auth/email-already-in-use") {
       console.error("Error: El correo electrónico ya está en uso.");
@@ -118,10 +120,15 @@ export const registerClient = async (email, password, additionalData) => {
 
 
 export const onAuthStateChangedHelper = (callback) => {
-  return onAuthStateChanged(auth, callback);
+    return onAuthStateChanged(auth, callback);
 };
 
-// --- Platos ---
+// --- Funciones para Platos (Luciano y Bastián) ---
+
+/**
+ * (Para Luciano) Obtiene TODOS los platos de la colección 'platos'.
+ * @returns {Promise<Array<Object>>} Un array de objetos, cada uno es un plato con su ID.
+ */
 export const getAllPlatos = async () => {
   const platosCollectionRef = collection(db, "platos");
   const querySnapshot = await getDocs(platosCollectionRef);
@@ -166,9 +173,8 @@ export const createPlato = async (platoData) => {
 };
 
 /**
- * (Para Luciano/Admin) Elimina permanentemente un plato de la colección 'platos'.
- * @param {string} platoId - El ID del documento del plato a eliminar.
- * @returns {Promise<void>}
+ * (Para Bastián) Obtiene solo los platos que tienen 'isDisponible' en true.
+ * @returns {Promise<Array<Object>>} Un array de platos disponibles con su ID.
  */
 export const deletePlato = async (platoId) => {
   // 1. Apunta al documento específico en la colección 'platos'
@@ -184,48 +190,66 @@ export const deletePlato = async (platoId) => {
 };
 
 export const updateDisponibilidad = async (platoId, estado) => {
-  const platoDocRef = doc(db, "platos", platoId);
-  try {
-    await updateDoc(platoDocRef, {
-      isDisponible: estado,
-      // espejo por compatibilidad:
-      disponible: estado,
-    });
-    console.log("Disponibilidad actualizada para el plato:", platoId);
-  } catch (error) {
-    console.error("Error al actualizar disponibilidad:", error);
-    throw error;
-  }
+    const platoDocRef = doc(db, "platos", platoId);
+    try {
+        await updateDoc(platoDocRef, {
+            isDisponible: estado
+        });
+        console.log("Disponibilidad actualizada para el plato:", platoId);
+    } catch (error) {
+        console.error("Error al actualizar disponibilidad:", error);
+        throw error;
+    }
 };
 
-// --- Pedidos ---
+// --- Funciones para Pedidos (Bastián y Constanza) ---
+
+/**
+ * (Para Bastián) Crea un nuevo documento en la colección 'pedidos'.
+ * @param {Object} pedido - El objeto del pedido (ej. { items: [...], total: 12000, clienteId: "..." }).
+ * @returns {Promise<DocumentReference>} Referencia al documento recién creado.
+ */
 export const createPedido = async (pedido) => {
-  const ref = collection(db, "pedidos");
-  try {
-    const docRef = await addDoc(ref, {
-      ...pedido,
-      estado: "Pendiente",
-      fechaCreacion: serverTimestamp(),
-    });
-    console.log("Pedido creado con ID:", docRef.id);
-    return docRef;
-  } catch (error) {
-    console.error("Error al crear pedido:", error);
-    throw error;
-  }
+    const pedidosCollectionRef = collection(db, "pedidos");
+    try {
+        const docRef = await addDoc(pedidosCollectionRef, {
+            ...pedido,
+            estado: "Pendiente", // Estado inicial
+            fechaCreacion: serverTimestamp() // Marca de tiempo del servidor
+        });
+        console.log("Pedido creado con ID:", docRef.id);
+        return docRef;
+    } catch (error) {
+        console.error("Error al crear pedido:", error);
+        throw error;
+    }
 };
 
+/**
+ * (Para Luciano/Constanza) Actualiza el estado de un pedido (ej. "En Camino", "Entregado").
+ * @param {string} pedidoId - El ID del documento del pedido a actualizar.
+ * @param {string} nuevoEstado - El nuevo estado (ej. "En Camino").
+ * @returns {Promise<void>}
+ */
 export const updatePedidoEstado = async (pedidoId, nuevoEstado) => {
+  // Apunta al documento específico en la colección 'pedidos'
   const pedidoDocRef = doc(db, "pedidos", pedidoId);
   try {
-    await updateDoc(pedidoDocRef, { estado: nuevoEstado });
+    // Actualiza solo el campo 'estado'
+    await updateDoc(pedidoDocRef, {
+      estado: nuevoEstado,
+    });
     console.log("Estado del pedido actualizado:", pedidoId, "a", nuevoEstado);
   } catch (error) {
     console.error("Error al actualizar estado del pedido:", error);
-    throw error;
+    throw error; // Lanza el error para que el componente lo atrape
   }
 };
 
+/**
+ * (Para Constanza) Obtiene todos los pedidos, ordenados por fecha de creación (más nuevos primero).
+ * @returns {Promise<Array<Object>>} Un array de objetos, cada uno es un pedido con su ID.
+ */
 export const getPedidos = async () => {
   const ref = collection(db, "pedidos");
   const q = query(ref, orderBy("fechaCreacion", "desc"));
