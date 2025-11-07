@@ -6,13 +6,7 @@ import {
   onAuthStateChanged,
   signOut,
   createUserWithEmailAndPassword,
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  onAuthStateChanged,
-  signOut,
-  createUserWithEmailAndPassword,
-} from "firebase/auth";
+ } from "firebase/auth";
 import { 
     getFirestore,
     collection,
@@ -72,6 +66,8 @@ export const logout = async () => {
   }
 };
 
+
+
 export const getUserProfile = async (uid) => {
   const userDocRef = doc(db, "usuarios", uid);
   const userDocSnap = await getDoc(userDocRef);
@@ -87,11 +83,6 @@ export const getUserProfile = async (uid) => {
 
 export const registerClient = async (email, password, additionalData) => {
   try {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
@@ -240,4 +231,18 @@ export const getPedidos = async () => {
   const q = query(ref, orderBy("fechaCreacion", "desc"));
   const qs = await getDocs(q);
   return qs.docs.map((d) => ({ id: d.id, ...d.data() }));
+};
+
+export const callCreateUserWithRole = async (email, password, rol) => {
+  const crearUsuario = httpsCallable(functions, "crearUsuarioConRol");
+
+  try {
+    // Llama a la nube y le pasa los datos
+    const result = await crearUsuario({ email, password, rol });
+    return result.data; // Devuelve { success: true, message: "..." }
+  } catch (error) {
+    // Atrapa errores como "permission-denied"
+    console.error("Error al llamar a la Cloud Function:", error);
+    throw new Error(error.message);
+  }
 };
