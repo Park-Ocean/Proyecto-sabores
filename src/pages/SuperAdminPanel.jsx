@@ -34,8 +34,8 @@ const SuperAdminPanel = () => {
   const [loadingCreate, setLoadingCreate] = useState(false);
 
   // ======== Cargar saldo ========
-  const [identificador, setIdentificador] = useState("uid"); // uid | email
-  const [target, setTarget] = useState(""); // valor del uid o email
+  // ======== Cargar saldo ========
+  const [targetEmail, setTargetEmail] = useState("");
   const [monto, setMonto] = useState("");
   const [loadingSaldo, setLoadingSaldo] = useState(false);
 
@@ -71,21 +71,34 @@ const SuperAdminPanel = () => {
   };
 
   // ---------- Utilidad: obtener UID por email ----------
+  // ---------- Utilidad: obtener UID por email ----------
   const getUidByEmail = async (mail) => {
-    const ref = collection(db, "usuarios");
-    const q = query(ref, where("email", "==", mail));
-    const qs = await getDocs(q);
-    if (qs.empty) return null;
-    return qs.docs[0].id; // UID es el id del doc
+    try {
+      const ref = collection(db, "usuarios");
+      // Aseguramos que el email esté limpio
+      const cleanMail = mail.trim();
+      const q = query(ref, where("email", "==", cleanMail));
+      const qs = await getDocs(q);
+
+      if (qs.empty) {
+        console.warn(`No se encontró usuario con email: ${cleanMail}`);
+        return null;
+      }
+      return qs.docs[0].id;
+    } catch (error) {
+      console.error("Error buscando usuario por email:", error);
+      throw error;
+    }
   };
 
+  // ---------- Asignar saldo directamente ----------
   // ---------- Asignar saldo directamente ----------
   const handleSaldoSubmit = async (e) => {
     e.preventDefault();
     const cantidad = Number(monto);
 
-    if (!target.trim()) {
-      toast({ title: "Falta identificador", description: "Ingresa un UID o Email.", status: "warning" });
+    if (!targetEmail.trim()) {
+      toast({ title: "Falta email", description: "Ingresa el correo del usuario.", status: "warning" });
       return;
     }
     if (!Number.isFinite(cantidad) || cantidad <= 0) {
@@ -95,28 +108,25 @@ const SuperAdminPanel = () => {
 
     setLoadingSaldo(true);
     try {
-      let uid = target.trim();
+      const uid = await getUidByEmail(targetEmail);
 
-      if (identificador === "email") {
-        const foundUid = await getUidByEmail(uid);
-        if (!foundUid) {
-          throw new Error("No se encontró un usuario con ese email.");
-        }
-        uid = foundUid;
+      if (!uid) {
+        throw new Error("No se encontró un usuario con ese email.");
       }
 
       await addSaldoToUser(uid, cantidad);
 
       toast({
         title: "Saldo asignado",
-        description: `Se añadieron ${cantidad.toLocaleString("es-CL")} al usuario (${identificador.toUpperCase()}: ${target}).`,
+        description: `Se añadieron ${cantidad.toLocaleString("es-CL")} al usuario ${targetEmail}.`,
         status: "success",
         duration: 5000,
         isClosable: true,
       });
 
-      // Limpia solo el monto; el identificador puede reutilizarse para más cargas
       setMonto("");
+      // Opcional: limpiar email también
+      // setTargetEmail(""); 
     } catch (e2) {
       toast({
         title: "Error al asignar saldo",
@@ -176,20 +186,13 @@ const SuperAdminPanel = () => {
           <Heading size="md">Asignar saldo a usuario</Heading>
 
           <HStack spacing={3} align="start">
-            <FormControl maxW="200px" isRequired>
-              <FormLabel>Identificador</FormLabel>
-              <Select value={identificador} onChange={(e) => setIdentificador(e.target.value)}>
-                <option value="uid">UID</option>
-                <option value="email">Email</option>
-              </Select>
-            </FormControl>
-
             <FormControl isRequired>
-              <FormLabel>{identificador === "email" ? "Email del usuario" : "UID del usuario"}</FormLabel>
+              <FormLabel>Email del usuario</FormLabel>
               <Input
-                placeholder={identificador === "email" ? "usuario@correo.com" : "UID_abc123"}
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
+                type="email"
+                placeholder="usuario@correo.com"
+                value={targetEmail}
+                onChange={(e) => setTargetEmail(e.target.value)}
               />
             </FormControl>
 
@@ -206,7 +209,7 @@ const SuperAdminPanel = () => {
           </HStack>
 
           <Text fontSize="sm" color="gray.500">
-            Ingresa el {identificador.toUpperCase()} del usuario y el monto. Al enviar, el saldo se asignará de inmediato.
+            Ingresa el email del usuario y el monto. Al enviar, el saldo se asignará de inmediato.
           </Text>
 
           <Button type="submit" colorScheme="green" isLoading={loadingSaldo} alignSelf="flex-start">

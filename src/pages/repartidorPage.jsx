@@ -28,7 +28,11 @@ export default function RepartidorPanel() {
     (async () => {
       try {
         const data = await getPedidos(); // fetch puntual (getDocs)
-        if (alive) setPedidos(Array.isArray(data) ? data : []);
+        // Filtrar solo Listo para Retiro y En Camino
+        const filtrados = (Array.isArray(data) ? data : []).filter(p =>
+          p.estado === "Listo para Retiro" || p.estado === "En Camino"
+        );
+        if (alive) setPedidos(filtrados);
       } catch (e) {
         console.error(e);
       } finally {
@@ -69,9 +73,10 @@ export default function RepartidorPanel() {
     const e = String(estado || "").toLowerCase();
     if (e.includes("entregado")) return "green";
     if (e.includes("camino")) return "blue";
+    if (e.includes("listo")) return "orange";
     if (e.includes("pendiente")) return "gray";
     return "purple";
-    };
+  };
 
   if (cargando) {
     return (
@@ -124,25 +129,29 @@ export default function RepartidorPanel() {
                         </Text>
                       )}
                       {/* --- FIN DE LA TAREA --- */}
-                    
+
                     </Box>
 
                     {/* Botones de estado */}
                     <ButtonGroup size="sm" isAttached>
-                      <Button
-                        variant="outline"
-                        onClick={() => cambiarEstado(pedido.id, "En Camino")}
-                        isLoading={actualizando === pedido.id}
-                      >
-                        En Camino
-                      </Button>
-                      <Button
-                        colorScheme="green"
-                        onClick={() => cambiarEstado(pedido.id, "Entregado")}
-                        isLoading={actualizando === pedido.id}
-                      >
-                        Entregado
-                      </Button>
+                      {pedido.estado === "Listo para Retiro" && (
+                        <Button
+                          colorScheme="blue"
+                          onClick={() => cambiarEstado(pedido.id, "En Camino")}
+                          isLoading={actualizando === pedido.id}
+                        >
+                          Retirar y llevar
+                        </Button>
+                      )}
+                      {pedido.estado === "En Camino" && (
+                        <Button
+                          colorScheme="green"
+                          onClick={() => cambiarEstado(pedido.id, "Entregado")}
+                          isLoading={actualizando === pedido.id}
+                        >
+                          Marcar Entregado
+                        </Button>
+                      )}
                     </ButtonGroup>
                   </HStack>
 

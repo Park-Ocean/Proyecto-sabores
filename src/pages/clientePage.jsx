@@ -36,7 +36,7 @@ import {
 } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getPlatosDisponibles, createPedido } from "../firebase";
+import { getPlatosDisponibles, createPedido, realizarPedidoConSaldo, getLastPedido, cancelarPedido } from "../firebase";
 
 // --- Fallback de imagen inline (sin dependencias)
 const FALLBACK_SVG =
@@ -97,6 +97,10 @@ const ClientePanel = () => {
   const [sortBy, setSortBy] = useState("relevancia");
   const [soloDisponibles, setSoloDisponibles] = useState(true);
 
+  const [ultimoPedido, setUltimoPedido] = useState(null);
+  const [loadingUltimoPedido, setLoadingUltimoPedido] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
+
   const { currentUser } = useAuth();
   const toast = useToast();
 
@@ -114,8 +118,23 @@ const ClientePanel = () => {
       }
       setLoadingPlatos(false);
     };
+
+    const fetchUltimo = async () => {
+      if (!currentUser?.uid) return;
+      setLoadingUltimoPedido(true);
+      try {
+        const ped = await getLastPedido(currentUser.uid);
+        setUltimoPedido(ped);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingUltimoPedido(false);
+      }
+    };
+
     fetchPlatos();
-  }, [toast]);
+    fetchUltimo();
+  }, [toast, currentUser]);
 
   // --- Carrito
   const agregarAlCarrito = (plato) => {
@@ -187,17 +206,17 @@ const ClientePanel = () => {
     }
     // 2. NUEVA VALIDACIÓN DE SALDO
     if (total > currentUser.saldo) {
-      toast({ 
-        title: "Saldo Insuficiente", 
-        description: `Tu saldo es de ${currency(currentUser.saldo)}, pero el pedido es de ${currency(total)}.`, 
+      toast({
+        title: "Saldo Insuficiente",
+        description: `Tu saldo es de ${currency(currentUser.saldo)}, pero el pedido es de ${currency(total)}.`,
         status: "error",
-        duration: 5000 
+        duration: 5000
       });
       return;
     }
 
     setLoadingPedido(true);
-    
+
     // 3. Preparamos el objeto del pedido
     const nuevoPedido = {
       clienteId: currentUser.uid,
@@ -213,8 +232,8 @@ const ClientePanel = () => {
     try {
       // 4. NUEVA LLAMADA A LA FUNCIÓN DE TRANSACCIÓN
       // (Asegúrate de importar 'realizarPedidoConSaldo' desde firebase.js)
-      await realizarPedidoConSaldo(nuevoPedido); 
-      
+      await realizarPedidoConSaldo(nuevoPedido);
+
       toast({ title: "¡Pedido realizado con éxito!", status: "success" });
       // Limpiamos el carrito y formularios
       setCarrito([]);
@@ -227,6 +246,24 @@ const ClientePanel = () => {
       toast({ title: "Error al enviar el pedido", description: error.message, status: "error" });
     }
     setLoadingPedido(false);
+    setLoadingPedido(false);
+  };
+
+  const handleCancelar = async () => {
+    if (!ultimoPedido?.id) return;
+    setCancelando(true);
+    try {
+      await cancelarPedido(ultimoPedido.id, currentUser.uid);
+      toast({ title: "Pedido cancelado y saldo reembolsado", status: "success" });
+      // Actualizar UI
+      setUltimoPedido({ ...ultimoPedido, estado: "Cancelado" });
+      // Idealmente recargar el saldo del usuario en el contexto, pero eso requeriría más cambios.
+      // Por ahora el usuario verá el saldo actualizado al recargar o si el contexto escucha cambios.
+    } catch (e) {
+      toast({ title: "Error al cancelar", description: e.message, status: "error" });
+    } finally {
+      setCancelando(false);
+    }
   };
 
   // --- Render
@@ -238,7 +275,7 @@ const ClientePanel = () => {
     );
   }
 
-  const username = (currentUser?.email || "").split("@")[0];
+  const username = (currentUser?.nombre || currentUser?.email).split("@")[0];
 
   return (
     <Container maxW="container.2xl" py={6}>
@@ -249,12 +286,14 @@ const ClientePanel = () => {
           <Box>
             <Heading size="md">¡Hola, {username || currentUser?.email}!</Heading>
             <HStack spacing={3} mt={1}>
+              {/* 
               <Tag colorScheme="purple" variant="subtle" size="sm">
                 <TagLabel>Nivel: Foodie</TagLabel>
               </Tag>
               <Tag colorScheme="green" variant="subtle" size="sm">
                 <TagLabel>Puntos: 120</TagLabel>
               </Tag>
+              */}
               <Tag colorScheme="green" variant="solid" size="lg" p={2} borderRadius="md">
                 <TagLabel fontSize="md" fontWeight="bold">
                   Saldo: {currency(currentUser?.saldo)}
@@ -270,6 +309,31 @@ const ClientePanel = () => {
           </Button>
         </Tooltip>
       </HStack>
+
+      {/* Sección Mi Último Pedido */}
+      {ultimoPedido && (
+        <Box mb={8} p={4} borderWidth="1px" borderRadius="lg" bg="blue.50" borderColor="blue.200">
+          <Heading size="md" mb={2}>Mi Último Pedido</Heading>
+          <HStack justify="space-between" wrap="wrap">
+            <Box>
+              <Text fontWeight="bold">Pedido #{ultimoPedido.id.slice(0, 6)}</Text>
+              <Text fontSize="sm">Estado: <Badge colorScheme={ultimoPedido.estado === "Pendiente" ? "gray" : ultimoPedido.estado === "Cancelado" ? "red" : "green"}>{ultimoPedido.estado}</Badge></Text>
+              <Text fontSize="sm">Total: {currency(ultimoPedido.total)}</Text>
+            </Box>
+            {ultimoPedido.estado === "Pendiente" && (
+              <Button
+                colorScheme="red"
+                variant="outline"
+                size="sm"
+                onClick={handleCancelar}
+                isLoading={cancelando}
+              >
+                Cancelar Pedido
+              </Button>
+            )}
+          </HStack>
+        </Box>
+      )}
 
       {/* Filtros */}
       <HStack spacing={4} align="center" mb={5} flexWrap="wrap">
@@ -521,15 +585,15 @@ const ClientePanel = () => {
               ¡Saldo insuficiente para este pedido!
             </Text>
           )}
-          
-          <Button 
-            colorScheme="green" 
-            width="full" 
-            onClick={handleConfirmarPedido} 
-            isLoading={loadingPedido} 
+
+          <Button
+            colorScheme="green"
+            width="full"
+            onClick={handleConfirmarPedido}
+            isLoading={loadingPedido}
             // 5. NUEVA LÓGICA 'isDisabled'
             isDisabled={
-              carrito.length === 0 || 
+              carrito.length === 0 ||
               total > (currentUser?.saldo || 0) ||
               direccion.trim() === ""
             }

@@ -5,34 +5,36 @@ import {
   onAuthStateChanged,
   signOut,
   createUserWithEmailAndPassword,
- } from "firebase/auth";
-import { 
-    getFirestore,
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    addDoc,
-    updateDoc,
-    query,
-    where,
-    serverTimestamp,
-    orderBy,
-    setDoc,
-    runTransaction,
-    increment
+} from "firebase/auth";
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  query,
+  where,
+  serverTimestamp,
+  orderBy,
+  setDoc,
+  runTransaction,
+  increment,
+  limit,
+  deleteDoc
 } from "firebase/firestore";
 
 import { getFunctions, httpsCallable } from "firebase/functions";
 // -----------------------------
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBY2v5ip4Ozmqp3Qc4ZIyDOoJceo_SwVBs",
-  authDomain: "sabores-web.firebaseapp.com",
-  projectId: "sabores-web",
-  storageBucket: "sabores-web.firebasestorage.app",
-  messagingSenderId: "726699207665",
-  appId: "1:726699207665:web:c5acc57103eb5c4c297250"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 const app = initializeApp(firebaseConfig);
 
@@ -43,13 +45,13 @@ export const db = getFirestore(app);
 export const functions = getFunctions(app);
 
 export const login = async (email, password) => {
-    try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        return userCredential;
-    } catch (error) {
-        console.error("Error en login:", error.code, error.message);
-        throw error; // Lanza el error para que el componente de login lo atrape
-    }
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential;
+  } catch (error) {
+    console.error("Error en login:", error.code, error.message);
+    throw error; // Lanza el error para que el componente de login lo atrape
+  }
 };
 
 /**
@@ -57,13 +59,13 @@ export const login = async (email, password) => {
  * @returns {Promise<void>}
  */
 export const logout = async () => {
-    try {
-        await signOut(auth);
-        console.log("Usuario deslogueado exitosamente");
-    } catch (error) {
-        console.error("Error en logout:", error.code, error.message);
-        throw error;
-    }
+  try {
+    await signOut(auth);
+    console.log("Usuario deslogueado exitosamente");
+  } catch (error) {
+    console.error("Error en logout:", error.code, error.message);
+    throw error;
+  }
 };
 
 /**
@@ -75,7 +77,7 @@ export const logout = async () => {
 export const realizarPedidoConSaldo = async (pedidoData) => {
   // 1. Referencia al documento del usuario (para descontar saldo)
   const userDocRef = doc(db, "usuarios", pedidoData.clienteId);
-  
+
   // 2. Referencia al NUEVO documento del pedido (generamos un ID por adelantado)
   const newPedidoRef = doc(collection(db, "pedidos"));
 
@@ -99,8 +101,8 @@ export const realizarPedidoConSaldo = async (pedidoData) => {
 
       // 6. (DENTRO DE LA TRANSACCIÓN) Si hay saldo, descuéntalo
       // Usamos 'increment' con un número negativo para seguridad
-      transaction.update(userDocRef, { 
-        saldo: increment(-totalPedido) 
+      transaction.update(userDocRef, {
+        saldo: increment(-totalPedido)
       });
 
       // 7. (DENTRO DE LA TRANSACCIÓN) Crea el nuevo pedido
@@ -115,7 +117,7 @@ export const realizarPedidoConSaldo = async (pedidoData) => {
 
     console.log("Pedido y descuento de saldo exitosos. ID:", pedidoId);
     return pedidoId; // Devuelve el ID del pedido
-    
+
   } catch (error) {
     // Si el error fue 'Saldo insuficiente' o cualquier otro, la UI lo recibirá
     console.error("Error en la transacción del pedido:", error.message);
@@ -184,7 +186,7 @@ export const registerClient = async (email, password, additionalData) => {
 
     // Devolvemos el usuario para que el AuthContext lo reconozca (auto-login)
     return userCredential;
-    
+
   } catch (error) {
     if (error.code === "auth/email-already-in-use") {
       console.error("Error: El correo electrónico ya está en uso.");
@@ -203,7 +205,7 @@ export const registerClient = async (email, password, additionalData) => {
 
 
 export const onAuthStateChangedHelper = (callback) => {
-    return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(auth, callback);
 };
 
 // --- Funciones para Platos (Luciano y Bastián) ---
@@ -273,16 +275,16 @@ export const deletePlato = async (platoId) => {
 };
 
 export const updateDisponibilidad = async (platoId, estado) => {
-    const platoDocRef = doc(db, "platos", platoId);
-    try {
-        await updateDoc(platoDocRef, {
-            isDisponible: estado
-        });
-        console.log("Disponibilidad actualizada para el plato:", platoId);
-    } catch (error) {
-        console.error("Error al actualizar disponibilidad:", error);
-        throw error;
-    }
+  const platoDocRef = doc(db, "platos", platoId);
+  try {
+    await updateDoc(platoDocRef, {
+      isDisponible: estado
+    });
+    console.log("Disponibilidad actualizada para el plato:", platoId);
+  } catch (error) {
+    console.error("Error al actualizar disponibilidad:", error);
+    throw error;
+  }
 };
 
 // --- Funciones para Pedidos (Bastián y Constanza) ---
@@ -293,19 +295,19 @@ export const updateDisponibilidad = async (platoId, estado) => {
  * @returns {Promise<DocumentReference>} Referencia al documento recién creado.
  */
 export const createPedido = async (pedido) => {
-    const pedidosCollectionRef = collection(db, "pedidos");
-    try {
-        const docRef = await addDoc(pedidosCollectionRef, {
-            ...pedido,
-            estado: "Pendiente", // Estado inicial
-            fechaCreacion: serverTimestamp() // Marca de tiempo del servidor
-        });
-        console.log("Pedido creado con ID:", docRef.id);
-        return docRef;
-    } catch (error) {
-        console.error("Error al crear pedido:", error);
-        throw error;
-    }
+  const pedidosCollectionRef = collection(db, "pedidos");
+  try {
+    const docRef = await addDoc(pedidosCollectionRef, {
+      ...pedido,
+      estado: "Pendiente", // Estado inicial
+      fechaCreacion: serverTimestamp() // Marca de tiempo del servidor
+    });
+    console.log("Pedido creado con ID:", docRef.id);
+    return docRef;
+  } catch (error) {
+    console.error("Error al crear pedido:", error);
+    throw error;
+  }
 };
 
 /**
@@ -338,6 +340,77 @@ export const getPedidos = async () => {
   const q = query(ref, orderBy("fechaCreacion", "desc"));
   const qs = await getDocs(q);
   return qs.docs.map((d) => ({ id: d.id, ...d.data() }));
+};
+
+/**
+ * Cancela un pedido y reembolsa el saldo al usuario.
+ * Solo permite cancelar si el estado es "Pendiente".
+ * @param {string} pedidoId - ID del pedido a cancelar.
+ * @param {string} userId - ID del usuario que solicita la cancelación.
+ */
+export const cancelarPedido = async (pedidoId, userId) => {
+  const pedidoRef = doc(db, "pedidos", pedidoId);
+  const userRef = doc(db, "usuarios", userId);
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const pedidoDoc = await transaction.get(pedidoRef);
+      if (!pedidoDoc.exists()) {
+        throw new Error("El pedido no existe.");
+      }
+
+      const pedidoData = pedidoDoc.data();
+      if (pedidoData.estado !== "Pendiente") {
+        throw new Error("Solo se pueden cancelar pedidos en estado 'Pendiente'.");
+      }
+
+      if (pedidoData.clienteId !== userId) {
+        throw new Error("No tienes permiso para cancelar este pedido.");
+      }
+
+      // Reembolsar saldo
+      transaction.update(userRef, {
+        saldo: increment(pedidoData.total)
+      });
+
+      // Actualizar estado del pedido a Cancelado
+      transaction.update(pedidoRef, {
+        estado: "Cancelado"
+      });
+    });
+    console.log("Pedido cancelado y saldo reembolsado:", pedidoId);
+  } catch (error) {
+    console.error("Error al cancelar pedido:", error);
+    throw error;
+  }
+};
+
+/**
+ * Obtiene el último pedido de un cliente específico.
+ * @param {string} userId - ID del cliente.
+ * @returns {Promise<Object|null>} El último pedido o null si no tiene.
+ */
+export const getLastPedido = async (userId) => {
+  const ref = collection(db, "pedidos");
+  // Consultamos solo por clienteId para evitar requerir índice compuesto (clienteId + fechaCreacion)
+  const q = query(ref, where("clienteId", "==", userId));
+
+  const querySnapshot = await getDocs(q);
+  if (querySnapshot.empty) {
+    return null;
+  }
+
+  // Ordenamos en cliente (memoria)
+  const pedidos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+  // Orden descendente por fechaCreacion
+  pedidos.sort((a, b) => {
+    const dateA = a.fechaCreacion?.toDate ? a.fechaCreacion.toDate() : new Date(0);
+    const dateB = b.fechaCreacion?.toDate ? b.fechaCreacion.toDate() : new Date(0);
+    return dateB - dateA;
+  });
+
+  return pedidos[0];
 };
 
 export const callCreateUserWithRole = async (email, password, rol) => {

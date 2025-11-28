@@ -36,22 +36,26 @@ import {
   getAllPlatos as getPlatos,
   updateDisponibilidad,
   createPlato,
-  deletePlato, // ⬅️ usar función de firebase.js
+  deletePlato,
+  getPedidos,
+  updatePedidoEstado,
 } from "../firebase.js";
 
 const fmtCLP = (n) =>
   n == null
     ? ""
     : new Intl.NumberFormat("es-CL", {
-        style: "currency",
-        currency: "CLP",
-        maximumFractionDigits: 0,
-      }).format(Number(n));
+      style: "currency",
+      currency: "CLP",
+      maximumFractionDigits: 0,
+    }).format(Number(n));
 
 export default function AdminPanel() {
   const [platos, setPlatos] = useState([]);
+  const [pedidos, setPedidos] = useState([]); // Nuevos pedidos
   const [cargando, setCargando] = useState(true);
   const [actualizando, setActualizando] = useState(null);
+  const [actualizandoPedido, setActualizandoPedido] = useState(null);
 
   // Formulario
   const [nombre, setNombre] = useState("");
@@ -88,13 +92,30 @@ export default function AdminPanel() {
         description: String(err?.message || err),
         status: "error",
       });
-    } finally {
-      setCargando(false);
     }
   };
 
+  const cargarPedidos = async () => {
+    try {
+      const data = await getPedidos();
+      // Filtrar solo Pendiente y En Preparación
+      const filtrados = data.filter(p =>
+        p.estado === "Pendiente" || p.estado === "En Preparación"
+      );
+      setPedidos(filtrados);
+    } catch (err) {
+      console.error("Error cargando pedidos:", err);
+    }
+  };
+
+  const init = async () => {
+    setCargando(true);
+    await Promise.all([cargarPlatos(), cargarPedidos()]);
+    setCargando(false);
+  };
+
   useEffect(() => {
-    cargarPlatos();
+    init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -163,6 +184,35 @@ export default function AdminPanel() {
     }
   };
 
+  const avanzarEstado = async (pedidoId, estadoActual) => {
+    let nuevoEstado = "";
+    if (estadoActual === "Pendiente") nuevoEstado = "En Preparación";
+    else if (estadoActual === "En Preparación") nuevoEstado = "Listo para Retiro";
+    else return;
+
+    try {
+      setActualizandoPedido(pedidoId);
+      await updatePedidoEstado(pedidoId, nuevoEstado);
+      setPedidos(prev => prev.filter(p => p.id !== pedidoId || nuevoEstado !== "Listo para Retiro"));
+      // Si pasa a Listo para Retiro, desaparece de esta lista (o podríamos dejarlo, pero el requerimiento dice que Admin gestiona hasta ahí)
+      // Para simplificar, si pasa a Listo para Retiro, lo quitamos de la vista de "Cocina" para que no estorbe, 
+      // o lo dejamos pero actualizado. El plan decía "List orders that are Pendiente or En Preparación".
+      // Si pasa a Listo para Retiro, ya no cumple el filtro inicial, así que lo quitamos visualmente.
+
+      if (nuevoEstado === "Listo para Retiro") {
+        setPedidos(prev => prev.filter(p => p.id !== pedidoId));
+      } else {
+        setPedidos(prev => prev.map(p => p.id === pedidoId ? { ...p, estado: nuevoEstado } : p));
+      }
+
+      toast({ title: `Pedido actualizado a: ${nuevoEstado}`, status: "success" });
+    } catch (err) {
+      toast({ title: "Error actualizando pedido", status: "error" });
+    } finally {
+      setActualizandoPedido(null);
+    }
+  };
+
   // --- Eliminar Plato ---
   const pedirConfirmacionEliminar = (plato) => {
     setPlatoAEliminar(plato);
@@ -214,6 +264,40 @@ export default function AdminPanel() {
         </Link>
       </HStack>
 
+
+      {/* Sección de Pedidos (Cocina) */}
+      <Box mb={8} p={4} borderWidth="1px" borderRadius="lg" bg="orange.50">
+        <HStack justify="space-between" mb={4}>
+          <Heading size="md">Pedidos en Cocina</Heading>
+          <Button size="sm" onClick={cargarPedidos} isLoading={cargando}>Actualizar</Button>
+        </HStack>
+
+        {pedidos.length === 0 ? (
+          <Text color="gray.600">No hay pedidos pendientes de preparación.</Text>
+        ) : (
+          <Stack spacing={3}>
+            {pedidos.map(p => (
+              <Box key={p.id} p={3} bg="white" borderRadius="md" shadow="sm" borderWidth="1px">
+                <HStack justify="space-between">
+                  <Box>
+                    <Text fontWeight="bold">Pedido #{p.id.slice(0, 6)}</Text>
+                    <Text fontSize="sm">Items: {p.items?.map(i => `${i.nombre} x${i.cantidad}`).join(", ")}</Text>
+                    <Text fontSize="xs" color="gray.500">Estado: {p.estado}</Text>
+                  </Box>
+                  <Button
+                    colorScheme={p.estado === "Pendiente" ? "orange" : "green"}
+                    size="sm"
+                    isLoading={actualizandoPedido === p.id}
+                    onClick={() => avanzarEstado(p.id, p.estado)}
+                  >
+                    {p.estado === "Pendiente" ? "Iniciar Preparación" : "Listo para Retiro"}
+                  </Button>
+                </HStack>
+              </Box>
+            ))}
+          </Stack>
+        )}
+      </Box>
       {/* Formulario */}
       <Box as="form" onSubmit={onCrear} p={4} borderWidth="1px" borderRadius="lg" mb={6}>
         <Heading size="md" mb={3}>Crear Nuevo Plato</Heading>
@@ -275,71 +359,73 @@ export default function AdminPanel() {
       <Text color="gray.500" mb={4}>Activa/Desactiva la disponibilidad de los platos.</Text>
       <Divider mb={4} />
 
-      {platos.length === 0 ? (
-        <Text color="gray.500">No hay platos cargados.</Text>
-      ) : (
-        <List spacing={4}>
-          {platos.map((plato) => (
-            <ListItem key={plato.id}>
-              <HStack align="flex-start" justify="space-between">
-                <HStack align="flex-start" spacing={4}>
-                  {plato.imgurl ? (
-                    <Image
-                      src={plato.imgurl}
-                      alt={plato.nombre}
-                      boxSize="64px"
-                      objectFit="cover"
-                      borderRadius="md"
-                      fallbackSrc=""
-                    />
-                  ) : null}
-                  <Box>
-                    <Text fontWeight="semibold">{plato.nombre}</Text>
-                    {plato.precio != null && (
-                      <Text fontSize="sm" color="gray.600">
-                        {fmtCLP(plato.precio)}
-                      </Text>
-                    )}
-                    {plato.descripcion ? (
-                      <Text mt={1} fontSize="sm" color="gray.500" noOfLines={2}>
-                        {plato.descripcion}
-                      </Text>
+      {
+        platos.length === 0 ? (
+          <Text color="gray.500">No hay platos cargados.</Text>
+        ) : (
+          <List spacing={4}>
+            {platos.map((plato) => (
+              <ListItem key={plato.id}>
+                <HStack align="flex-start" justify="space-between">
+                  <HStack align="flex-start" spacing={4}>
+                    {plato.imgurl ? (
+                      <Image
+                        src={plato.imgurl}
+                        alt={plato.nombre}
+                        boxSize="64px"
+                        objectFit="cover"
+                        borderRadius="md"
+                        fallbackSrc=""
+                      />
                     ) : null}
-                  </Box>
-                </HStack>
+                    <Box>
+                      <Text fontWeight="semibold">{plato.nombre}</Text>
+                      {plato.precio != null && (
+                        <Text fontSize="sm" color="gray.600">
+                          {fmtCLP(plato.precio)}
+                        </Text>
+                      )}
+                      {plato.descripcion ? (
+                        <Text mt={1} fontSize="sm" color="gray.500" noOfLines={2}>
+                          {plato.descripcion}
+                        </Text>
+                      ) : null}
+                    </Box>
+                  </HStack>
 
-                <HStack>
-                  <Text fontSize="sm" mr={2}>
-                    {plato.isDisponible ? "Disponible" : "No disponible"}
-                  </Text>
-                  <Switch
-                    isChecked={plato.isDisponible}
-                    isDisabled={actualizando === plato.id || eliminandoId === plato.id}
-                    onChange={(e) => onToggle(plato.id, e.target.checked)}
-                  />
-                  <Tooltip label="Eliminar plato" hasArrow>
-                    <IconButton
-                      aria-label="Eliminar plato"
-                      size="sm"
-                      ml={2}
-                      colorScheme="red"
-                      variant="outline"
-                      isLoading={eliminandoId === plato.id}
-                      onClick={() => pedirConfirmacionEliminar(plato)}
-                      icon={
-                        // pequeño ícono X sin dependencias externas
-                        <Box as="span" fontWeight="bold" lineHeight="0">
-                          ×
-                        </Box>
-                      }
+                  <HStack>
+                    <Text fontSize="sm" mr={2}>
+                      {plato.isDisponible ? "Disponible" : "No disponible"}
+                    </Text>
+                    <Switch
+                      isChecked={plato.isDisponible}
+                      isDisabled={actualizando === plato.id || eliminandoId === plato.id}
+                      onChange={(e) => onToggle(plato.id, e.target.checked)}
                     />
-                  </Tooltip>
+                    <Tooltip label="Eliminar plato" hasArrow>
+                      <IconButton
+                        aria-label="Eliminar plato"
+                        size="sm"
+                        ml={2}
+                        colorScheme="red"
+                        variant="outline"
+                        isLoading={eliminandoId === plato.id}
+                        onClick={() => pedirConfirmacionEliminar(plato)}
+                        icon={
+                          // pequeño ícono X sin dependencias externas
+                          <Box as="span" fontWeight="bold" lineHeight="0">
+                            ×
+                          </Box>
+                        }
+                      />
+                    </Tooltip>
+                  </HStack>
                 </HStack>
-              </HStack>
-            </ListItem>
-          ))}
-        </List>
-      )}
+              </ListItem>
+            ))}
+          </List>
+        )
+      }
 
       {/* Modal de confirmación de borrado */}
       <AlertDialog
@@ -379,6 +465,6 @@ export default function AdminPanel() {
           </AlertDialogContent>
         </AlertDialogOverlay>
       </AlertDialog>
-    </Box>
+    </Box >
   );
 }
